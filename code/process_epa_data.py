@@ -9,14 +9,15 @@ import os
 from tqdm import tqdm
 
 PATH_DATA = '../data/'
+PATH_EPA = PATH_DATA + 'epa/'
 
 pd.set_option('display.max_columns', None)
 
 def readin_data(key, coll_cols=None):
-    files = [f for f in os.listdir(PATH_DATA) if key in f.lower()]
+    files = [f for f in os.listdir(PATH_EPA) if key in f.lower()]
     df = pd.DataFrame({})
     for f in tqdm(files):
-        df_in = pd.read_csv(PATH_DATA + f, low_memory=False)
+        df_in = pd.read_csv(PATH_EPA + f, low_memory=False)
         if coll_cols is not None:
             df_in['quarter'] = pd.to_datetime(df_in.Date).dt.to_period('Q')
             df_in = df_in.groupby(coll_cols['id']+['quarter'])[coll_cols['val']].sum().reset_index()

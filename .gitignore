@@ -1,2 +1,8 @@
+# logs
+*__pycache__*
+# virtual environment
 venv/
-data/*
+# data files
+data/epa/*
+data/eia/*
+data/*.csv
