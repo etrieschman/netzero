@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 
 PATH_DATA = '../data/'
 PATH_EIA = PATH_DATA + 'eia/'
-EIA_API_KEY = 'om3M1jUtOOgs5zoO20PE1Io0YSFCI91Ap3RS7Cph'
 
 # %%
 # DOWNLOAD A ZIP FILE
