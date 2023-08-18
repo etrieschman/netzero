@@ -26,7 +26,7 @@ def readin_data(key, coll_cols=None):
 
 # %%
 # READ IN data
-facdf = readin_data('facility')
+# facdf = readin_data('facility')
 # emdf = readin_data('emissions')
 
 # %%
@@ -35,28 +35,28 @@ col_em = {'id': ['State', 'Facility Name', 'Facility ID', 'Unit ID'],
           'val': ['Gross Load (MWh)', 'Steam Load (1000 lb)', 
                   'SO2 Mass (short tons)', 'CO2 Mass (short tons)', 
                   'NOx Mass (short tons)', 'Heat Input (mmBtu)']}
-emdf = readin_data('emissions', col_em)
+# emdf = readin_data('emissions', col_em)
 
 
 # %%
 # VISUALIZE EMISSIONS DATA
-facility_units = emdf[['Facility ID', 'Unit ID']].drop_duplicates().values
-for f, u in facility_units[:10]:
-    em = emdf.loc[(emdf['Facility ID'] == f) & (emdf['Unit ID'] == u), ].sort_values('quarter')
-    plt.plot(em.quarter.dt.to_timestamp().values, em['Gross Load (MWh)'].values)
-plt.title('Sample unit-level emissions data by quarter')
+# facility_units = emdf[['Facility ID', 'Unit ID']].drop_duplicates().values
+# for f, u in facility_units[:10]:
+#     em = emdf.loc[(emdf['Facility ID'] == f) & (emdf['Unit ID'] == u), ].sort_values('quarter')
+#     plt.plot(em.quarter.dt.to_timestamp().values, em['Gross Load (MWh)'].values)
+# plt.title('Sample unit-level emissions data by quarter')
 
 # %%
 # VISUALIZE FACILITY DATA
-temp = (facdf
-        .loc[~facdf.State.isin(['AK', 'HI', 'PR'])]
-        .groupby(['Latitude', 'Longitude', 'Year']).agg({'Facility ID':'count'})
-        .reset_index())
-geometry = [Point(xy) for xy in zip(temp['Longitude'], temp['Latitude'])]
-geotemp = gpd.GeoDataFrame(temp, geometry=geometry)
-for y in geotemp.Year.drop_duplicates().values:
-    geotempyear = geotemp.loc[geotemp.Year == y]
-    geotempyear.plot(column='Facility ID', alpha=0.5, legend=True)
-    plt.title(f'Count of facilities in Year {y}')
-    plt.show()
+# temp = (facdf
+#         .loc[~facdf.State.isin(['AK', 'HI', 'PR'])]
+#         .groupby(['Latitude', 'Longitude', 'Year']).agg({'Facility ID':'count'})
+#         .reset_index())
+# geometry = [Point(xy) for xy in zip(temp['Longitude'], temp['Latitude'])]
+# geotemp = gpd.GeoDataFrame(temp, geometry=geometry)
+# for y in geotemp.Year.drop_duplicates().values:
+#     geotempyear = geotemp.loc[geotemp.Year == y]
+#     geotempyear.plot(column='Facility ID', alpha=0.5, legend=True)
+#     plt.title(f'Count of facilities in Year {y}')
+#     plt.show()
 # %%

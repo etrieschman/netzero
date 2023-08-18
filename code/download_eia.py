@@ -19,7 +19,7 @@ def download_zip(url, path_save):
     zip = zipfile.ZipFile(BytesIO(req.content))
     files = zip.namelist()
     downfiles = [f for f in files if f.endswith(('.xls','.xlsx'))]
-    path = f'{PATH_EIA}' if downfiles[0].startswith(f'{year}/') else f'{PATH_EIA}{year}/'
+    path = f'{path_save}' if downfiles[0].startswith(f'{year}/') else f'{path_save}{year}/'
     zip.extractall(path, members=downfiles)
 
 
@@ -34,10 +34,18 @@ def get_eia_zips(url, start_year):
 
 
 # %%
-# download data
+# DOWNLOAD UTILITY-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia861/'
-zip_paths = get_eia_zips(url, 2018)
+zip_paths = get_eia_zips(url, 2019)
 for zp in zip_paths:
-    download_zip(zp, PATH_EIA)
+    download_zip(zp, PATH_EIA+'f861/')
+
+# %%
+# DOWNLOAD PLANT-LEVEL DATA
+url = 'https://www.eia.gov/electricity/data/eia860/'
+zip_paths = get_eia_zips(url, 2019)
+for zp in zip_paths:
+    download_zip(zp, PATH_EIA+'f860/')
+
 
 # %%
