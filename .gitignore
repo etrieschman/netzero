@@ -1,5 +1,7 @@
 # logs
 *__pycache__*
+code/credentials.py
+
 # virtual environment
 venv/
 # data files

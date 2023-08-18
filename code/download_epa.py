@@ -9,10 +9,12 @@ from datetime import date
 from tqdm import tqdm
 import os
 
+from credentials import EPA_API_KEY # local user: save credentials.py file with api key
+
 PATH_DATA = '../data/'
 
 # Set API key
-EPA_API_KEY = 'z6klBZ8QocrDVSam0LpGFfc5CQCgFaoawmH0eUjn'
+
 epa_params = {'api_key': EPA_API_KEY}
 
 # EPA DATA
