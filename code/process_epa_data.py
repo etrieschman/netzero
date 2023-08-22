@@ -76,13 +76,13 @@ faclist.columns = ['Year', 'FacIDs', 'FunitIDs']
 
 prev_fids, prev_uids = set(), set()
 counts = {}
-counts['n_foverlap'], counts['n_fnew'], counts['n_fdrop'] = [], [], []
-counts['n_uoverlap'], counts['n_unew'], counts['n_udrop'] = [], [], []
+counts['n_f'], counts['n_fnew'], counts['n_fdrop'] = [], [], []
+counts['n_u'], counts['n_unew'], counts['n_udrop'] = [], [], []
 for index, row in faclist.iterrows():
     curr_fids, curr_uids = row.FacIDs, row.FunitIDs
     # Calculate overlap and new IDs
-    counts['n_foverlap'] += [len(prev_fids.intersection(curr_fids))]
-    counts['n_uoverlap'] += [len(prev_uids.intersection(curr_uids))]
+    counts['n_f'] += [len(curr_fids)]
+    counts['n_u'] += [len(curr_uids)]
     counts['n_fnew'] += [len(curr_fids.difference(prev_fids))]
     counts['n_unew'] += [len(curr_uids.difference(prev_uids))]
     counts['n_fdrop'] += [len(prev_fids.difference(curr_fids))]
@@ -94,8 +94,6 @@ for index, row in faclist.iterrows():
 for k, v in counts.items():
     faclist[k] = v
 faclist = faclist.drop(columns=['FacIDs', 'FunitIDs'])
-faclist['n_f'] = faclist.n_foverlap + faclist.n_fnew + faclist.n_fdrop
-faclist['n_u'] = faclist.n_uoverlap + faclist.n_unew + faclist.n_udrop
 faclist
 
 
