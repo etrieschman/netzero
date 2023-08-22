@@ -4,6 +4,7 @@ import pandas as pd
 import requests, zipfile, urllib
 from io import BytesIO
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 PATH_DATA = '../data/'
 PATH_EIA = PATH_DATA + 'eia/'
@@ -34,18 +35,19 @@ def get_eia_zips(url, start_year):
 
 
 # %%
+START_YEAR = 2013
 # DOWNLOAD UTILITY-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia861/'
-zip_paths = get_eia_zips(url, 2019)
-for zp in zip_paths:
-    download_zip(zp, PATH_EIA+'f861/')
+zip_paths = get_eia_zips(url, START_YEAR)
+for zp in tqdm(zip_paths):
+    download_zip(zp, PATH_EIA + 'f861/')
 
 # %%
 # DOWNLOAD PLANT-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia860/'
-zip_paths = get_eia_zips(url, 2019)
-for zp in zip_paths:
-    download_zip(zp, PATH_EIA+'f860/')
+zip_paths = get_eia_zips(url, START_YEAR)
+for zp in tqdm(zip_paths):
+    download_zip(zp, PATH_EIA + 'f860/')
 
 
 # %%

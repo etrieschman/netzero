@@ -1,46 +1,118 @@
 # %%
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
-from process_epa_data import readin_data
+# from process_epa_data import readin_data
 
 PATH_DATA = '../data/'
 PATH_EIA = PATH_DATA + 'eia/'
 PATH_EPA = PATH_DATA + 'epa/'
 
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', 25)
+
 
 # %%
 # READIN DATA
-# TODO: READING IN THE WRONG EIA DATA. NEED PLANT-LEVEL
-year = 2021
-udf = pd.read_excel(f'{PATH_EIA}{year}/Utility_Data_2021.xlsx', header=1, sheet_name='States')
-xwalk = pd.read_csv(f'{PATH_DATA}epa_eia_crosswalk.csv')
-fdf = readin_data('facility')
+years = range(2018, 2022)
 
 # %%
-# MERGE
-fdf_ids = fdf[['Facility Name', 'Facility ID', 'Unit ID']].drop_duplicates()
-xwalk_ids = xwalk[['CAMD_FACILITY_NAME', 'CAMD_PLANT_ID', 'CAMD_UNIT_ID',
-                      'EIA_PLANT_NAME', 'EIA_PLANT_ID', 'EIA_GENERATOR_ID']].drop_duplicates()
-udf_ids = udf[['Utility Name', 'Utility Number']].drop_duplicates().astype({'Utility Number':'float64'})
-print('EPA units:', len(fdf_ids))
-print('Crosswalk units:', len(xwalk_ids))
-m = pd.merge(left=fdf_ids, right=xwalk_ids, how='outer', 
-             left_on=['Facility ID', 'Unit ID'], 
-            right_on=['CAMD_PLANT_ID', 'CAMD_UNIT_ID']).drop_duplicates()
-print('Post-merge:', len(m))
-
-print('Post-merge:', len(mm))
+# UTILITY DATA
+cols_keep = ['utility_id', 'utility_name', 'city', 'state', 'entity_type']
+udf = pd.DataFrame({})
+for y in tqdm(years):
+    df = pd.read_excel(f'{PATH_EIA}f860/{y}/1___Utility_Y{y}.xlsx', header=1)
+    df.columns = df.columns.str.lower().str.replace(' ', '_')
+    df = df[cols_keep]
+    df['year'] = y
+    udf = pd.concat([df, udf], axis=0, ignore_index=True)
+udf
 
 # %%
-# SUMMARIZE MERGE
-eiax_nepa = len(m.loc[m['Facility ID'].isna() & m['EIA_PLANT_ID'].notna()])
-epa_nxeia = len(m.loc[m['Facility ID'].notna() & m['EIA_PLANT_ID'].isna()])
-epa_dups = sum(m[['Facility Name', 'Facility ID', 'Unit ID']].value_counts() > 1)
-print('EIA xwalk, missing in EPA:', eiax_nepa, eiax_nepa / len(m))
-print('EPA, missing in EIA xwalk:', epa_nxeia, epa_nxeia / len(m))
-print('EPA, duplicates:', epa_dups, epa_dups / len(m))
+# PLANT DATA
+cols_keep = ['utility_id', 'utility_name', 'plant_code', 'plant_name',
+       'city', 'state', 'zip', 'county', 'latitude',
+       'longitude', 'primary_purpose_naics_code']
+pdf = pd.DataFrame({})
+for y in tqdm(years):
+    df = pd.read_excel(f'{PATH_EIA}f860/{y}/2___Plant_Y{y}.xlsx', header=1)
+    df.columns = df.columns.str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')','')
+    df = df[cols_keep]
+    df['year'] = y
+    pdf = pd.concat([df, pdf], axis=0, ignore_index=True)
+pdf
 
 # %%
-fdf
+# GENERATOR DATA
+gen_tags = ['1_Generator', '2_Wind', '3_Solar', '4_Energy_Storage', '5_Multifuel']
+cols_keep = [
+    'utility_id', 'utility_name', 'plant_code', 'plant_name', 'state',
+       'county', 'generator_id', 'technology', 'prime_mover',
+       'nameplate_capacity_mw',
+]
+gdf = pd.DataFrame({})
+for y in tqdm(years):
+    for g in tqdm(gen_tags):
+        df = pd.read_excel(f'{PATH_EIA}f860/{y}/3_{g}_Y{y}.xlsx', header=1)
+        df.columns = df.columns.str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')','')
+        df = df[cols_keep]
+        df['year'] = y
+        gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
+gdf
+
+
+# %%
+# SUMMARIZE BY COUNTS
+def summarize_id_counts(df, ids):
+    for id in ids:
+        prev = set()
+        counts = {}
+        counts['n'], counts['n_new'], counts['n_drop'] = [], [], []
+        for i, row in df.iterrows():
+            curr = row[id]
+            # Calculate overlap and new IDs
+            counts['n'] += [len(curr)]
+            counts['n_new'] += [len(curr.difference(prev))]
+            counts['n_drop'] += [len(prev.difference(curr))]
+            # Update prev_ids for the next iteration
+            prev = curr
+
+        # Add new columns to the DataFrame
+        for k, v in counts.items():
+            df[f'{id}_{k}'] = v
+        df = df.drop(columns=[id])
+    return df
+
+# %%
+# GENERATE UTILITY SUMMARY
+# utility data
+ludf = (udf.groupby('year')[['utility_id']]
+           .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
+ludf = ludf.rename(columns={'utility_id':'uid'})
+print('Utility dataset:')
+summarize_id_counts(ludf.copy(), ['uid'])
+
+# %%
+# GENERATE PLANT SUMMARY
+# plant data
+pdf['pid'] = pdf.utility_id.astype(str) + '.' + pdf.plant_code.astype(str)
+lpdf = (pdf.groupby('year')[['utility_id', 'pid']]
+        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
+lpdf = lpdf.rename(columns={'utility_id':'uid'})
+print('Plant dataset:')
+summarize_id_counts(lpdf.copy(), ['uid', 'pid'])
+
+# %%
+# GENERATE GENERATOR SUMMARY
+# unit data
+gdf['pid'] = gdf.utility_id.astype(str) + '.' + gdf.plant_code.astype(str)
+gdf['gid'] = gdf.pid + '.' + gdf.generator_id
+lgdf = (gdf.groupby(['year'])[['utility_id', 'pid', 'gid']]
+        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
+lgdf = lgdf.rename(columns={'utility_id':'uid'})
+# .reset_index(drop=True).sort_values(['technology', 'year'])
+print('Generator dataset:')
+summarize_id_counts(lgdf.copy(), ['uid', 'pid', 'gid'])
+
 # %%

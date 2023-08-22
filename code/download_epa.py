@@ -55,7 +55,7 @@ def download_files(filesToDownload, parameters):
         # loop through all files and download them
         for fileObj in tqdm(filesToDownload):
             url = URL_BASE+fileObj['s3Path']
-            print('Full path to file on S3: '+url)
+            # print('Full path to file on S3: '+url)
             # download and save file
             response = requests.get(url, params=parameters)
             # save file to disk in the data folder
@@ -66,11 +66,12 @@ def download_files(filesToDownload, parameters):
 
 
 # %%
+START_YEAR = 2013
 # DOWNLOAD FACILITY DATA
 # facility data
 facFiles = [fileObj for fileObj in bulkFiles if 
             (fileObj['metadata']['dataType']=='Facility')]
-facFilters = {'minYear': 2018}
+facFilters = {'minYear': START_YEAR}
 
 filesToDownload = [fileObj for fileObj in facFiles if 
                    (int(fileObj['metadata']['year']) >= facFilters['minYear'])]
@@ -88,10 +89,12 @@ print('Emission granularity:',
       set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
 emFiles = [fileObj for fileObj in emFiles if
            (fileObj['metadata']['dataSubType']=='Daily')]
-emFilters = {'minYear': 2020}
+emFilters = {'minYear': START_YEAR}
 
 filesToDownload = [fileObj for fileObj in emFiles if 
                    (int(fileObj['metadata']['year']) >= emFilters['minYear'])]
 print('Number of files to download: '+str(len(filesToDownload)))
 download_files(filesToDownload, epa_params)
 
+
+# %%

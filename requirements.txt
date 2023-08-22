@@ -6,6 +6,7 @@ bs4==0.0.1
 openpyxl==3.1.2
 
 tqdm
+ipykernel==6.25.1
 
 # Geospatial
 geopandas==0.13.2
