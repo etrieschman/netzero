@@ -5,6 +5,6 @@ code/credentials.py
 # virtual environment
 venv/
 # data files
-data/epa/*
-data/eia/*
+data/raw/*
+data/processed/*
 data/*.csv

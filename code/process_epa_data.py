@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
 
-PATH_DATA = '../data/'
-PATH_EPA = PATH_DATA + 'epa/'
+from utils import PATH_DATA, PATH_EPA
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)

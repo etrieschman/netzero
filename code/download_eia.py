@@ -35,7 +35,9 @@ def get_eia_zips(url, start_year):
 
 
 # %%
-START_YEAR = 2013
+START_YEAR = 2018
+
+# %%
 # DOWNLOAD UTILITY-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia861/'
 zip_paths = get_eia_zips(url, START_YEAR)
@@ -50,4 +52,10 @@ for zp in tqdm(zip_paths):
     download_zip(zp, PATH_EIA + 'f860/')
 
 
+# %%
+# DOWNLOAD OPERATIONS-LEVEL DATA
+url = 'https://www.eia.gov/electricity/data/eia923/'
+zip_paths = get_eia_zips(url, START_YEAR)
+for zp in tqdm(zip_paths):
+    download_zip(zp, PATH_EIA + 'f923/')
 # %%

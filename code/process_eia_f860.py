@@ -3,63 +3,51 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-# from process_epa_data import readin_data
+from utils import PATH_EIA, PATH_PROCESSED
+from utils import readin_eia
 
-PATH_DATA = '../data/'
-PATH_EIA = PATH_DATA + 'eia/'
-PATH_EPA = PATH_DATA + 'epa/'
+YR_START, YR_END = 2018, 2021
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 25)
 
-
-# %%
-# READIN DATA
-years = range(2018, 2022)
-
 # %%
 # UTILITY DATA
-cols_keep = ['utility_id', 'utility_name', 'city', 'state', 'entity_type']
-udf = pd.DataFrame({})
-for y in tqdm(years):
-    df = pd.read_excel(f'{PATH_EIA}f860/{y}/1___Utility_Y{y}.xlsx', header=1)
-    df.columns = df.columns.str.lower().str.replace(' ', '_')
-    df = df[cols_keep]
-    df['year'] = y
-    udf = pd.concat([df, udf], axis=0, ignore_index=True)
-udf
+yr_start = 2018
+vars_keep = ['utility_id', 'utility_name', 'city', 'state', 'entity_type']
+udf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '1___Utility_Y', vars_keep, 1)
+udf.to_csv(PATH_PROCESSED + 'eia_f860_utility.csv', index=False)
 
 # %%
 # PLANT DATA
-cols_keep = ['utility_id', 'utility_name', 'plant_code', 'plant_name',
+vars_keep = ['utility_id', 'plant_code', 'plant_name',
        'city', 'state', 'zip', 'county', 'latitude',
        'longitude', 'primary_purpose_naics_code']
-pdf = pd.DataFrame({})
-for y in tqdm(years):
-    df = pd.read_excel(f'{PATH_EIA}f860/{y}/2___Plant_Y{y}.xlsx', header=1)
-    df.columns = df.columns.str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')','')
-    df = df[cols_keep]
-    df['year'] = y
-    pdf = pd.concat([df, pdf], axis=0, ignore_index=True)
-pdf
+pdf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '2___Plant_Y', vars_keep, 1)
+pdf.to_csv(PATH_PROCESSED + 'eia_f860_plant.csv', index=False)
 
 # %%
 # GENERATOR DATA
 gen_tags = ['1_Generator', '2_Wind', '3_Solar', '4_Energy_Storage', '5_Multifuel']
-cols_keep = [
-    'utility_id', 'utility_name', 'plant_code', 'plant_name', 'state',
-       'county', 'generator_id', 'technology', 'prime_mover',
-       'nameplate_capacity_mw',
-]
+vars_keep = ['utility_id', 'plant_code', 'generator_id', 
+             'technology', 'prime_mover', 'nameplate_capacity_mw']
 gdf = pd.DataFrame({})
-for y in tqdm(years):
-    for g in tqdm(gen_tags):
-        df = pd.read_excel(f'{PATH_EIA}f860/{y}/3_{g}_Y{y}.xlsx', header=1)
-        df.columns = df.columns.str.lower().str.replace(' ', '_').str.replace('(', '').str.replace(')','')
-        df = df[cols_keep]
-        df['year'] = y
-        gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
-gdf
+for g in gen_tags:
+    print('Generator type:', g)
+    df = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', f'3_{g}_Y', vars_keep, 1)
+    gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
+gdf.to_csv(PATH_PROCESSED + 'eia_f860_generator.csv', index=False)
+
+# %%
+# OPERATOR DATA
+vars_keep = ['utility_id', 'plant_code', 'generator_id', 
+             'ownership_id', 'status', 'owner_name', 'owner_street_address',
+             'owner_city', 'owner_state', 'owner_zip', 'percent_owned']
+odf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '4___Owner_y', vars_keep, 1)
+odf.to_csv(PATH_PROCESSED + 'eia_f860_ownership.csv', index=False)
+
+
+
 
 
 # %%
@@ -111,7 +99,6 @@ gdf['gid'] = gdf.pid + '.' + gdf.generator_id
 lgdf = (gdf.groupby(['year'])[['utility_id', 'pid', 'gid']]
         .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
 lgdf = lgdf.rename(columns={'utility_id':'uid'})
-# .reset_index(drop=True).sort_values(['technology', 'year'])
 print('Generator dataset:')
 summarize_id_counts(lgdf.copy(), ['uid', 'pid', 'gid'])
 
