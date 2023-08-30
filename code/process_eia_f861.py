@@ -13,7 +13,8 @@ pd.set_option('display.max_rows', 25)
 # %%
 # SUMMARIZE DATA AVAILABILITY
 frame = readin_eia(YR_START, YR_END, f'{PATH_EIA}f861', 'frame_')
-vars_id = ['year', 'data_year', 'utility_number', 'utility_name', 'ownership_code',
+frame = frame.drop(columns='data_year')
+vars_id = ['year', 'utility_number', 'utility_name', 'ownership_code',
            'ownership']
 vars_form = [col for col in frame.columns if col not in vars_id]
 frame['total'] = True
@@ -21,10 +22,12 @@ frame['none'] = frame[vars_form].any()
 vars_form += ['total', 'none']
 frame[vars_form] = frame[vars_form].replace(pd.NA, False).replace('X', True).replace('Y', True)
 
-# %%
 frame_summ = frame.groupby('year')[vars_form].sum()
 frame_summ
 
+# %%
+# WRITE TO FILE
+frame.to_csv(PATH_PROCESSED + 'eia_f861_uops.csv', index=False)
 
 
 

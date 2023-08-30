@@ -11,7 +11,7 @@ import os
 
 from credentials import EPA_API_KEY # local user: save credentials.py file with api key
 
-PATH_DATA = '../data/'
+from utils import PATH_EPA, PATH_PROCESSED
 
 # Set API key
 
@@ -59,14 +59,14 @@ def download_files(filesToDownload, parameters):
             # download and save file
             response = requests.get(url, params=parameters)
             # save file to disk in the data folder
-            with open(PATH_DATA + 'epa/' + fileObj['filename'], 'wb') as f:
+            with open(PATH_EPA + fileObj['filename'], 'wb') as f:
                 f.write(response.content)
     else:
         print('No files to download')
 
 
 # %%
-START_YEAR = 2013
+START_YEAR = 2018
 # DOWNLOAD FACILITY DATA
 # facility data
 facFiles = [fileObj for fileObj in bulkFiles if 

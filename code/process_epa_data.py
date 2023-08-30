@@ -5,80 +5,75 @@ import geopandas as gpd
 import plotly.figure_factory as ff
 from shapely.geometry import Point
 import matplotlib.pyplot as plt
-import os
 from tqdm import tqdm
 
-from utils import PATH_DATA, PATH_EPA
+from utils import PATH_PROCESSED
+from utils import readin_epa
+
+YR_START, YR_END = 2018, 2021
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
-def readin_epa_data(key, coll_cols=None):
-    files = [f for f in os.listdir(PATH_EPA) if key in f.lower()]
-    df = pd.DataFrame({})
-    for f in tqdm(files):
-        df_in = pd.read_csv(PATH_EPA + f, low_memory=False)
-        if coll_cols is not None:
-            df_in['quarter'] = pd.to_datetime(df_in.Date).dt.to_period('Q')
-            df_in = (df_in.groupby(coll_cols['id']+['quarter'])[coll_cols['val']]
-                     .sum().reset_index())
-        df = pd.concat([df_in, df], ignore_index=True, axis=0)
-    return df
+# %%
+# PROCESS FACILITY DATA
+vars_keep_fac = ['facility_id', 'unit_id', 'facility_name', 'state',
+       'year', 'county', 'county_code', 'fips_code', 'latitude', 'longitude',
+       'source_category',  'owner_operator', 'unit_type',
+       'primary_fuel_type', 'secondary_fuel_type',
+       'commercial_operation_date', 'operating_status',
+       'max_hourly_hi_rate_mmbtu_hr', 'associated_generators_and_nameplate_capacity_mwe']
+facdf = readin_epa(YR_START, YR_END, 'facility', vars_keep=vars_keep_fac)
+facdf.to_csv(PATH_PROCESSED + 'epa_facility.csv', index=False)
+facdf.head()
 
 # %%
-# READ IN FACILITY DATA
-facdf = readin_epa_data('facility')
-
-# %%
-# READ IN EMISSIONS DATA
-col_em = {'id': ['State', 'Facility Name', 'Facility ID', 'Unit ID'],
-          'val': ['Gross Load (MWh)', 'Steam Load (1000 lb)', 
-                  'SO2 Mass (short tons)', 'CO2 Mass (short tons)', 
-                  'NOx Mass (short tons)', 'Heat Input (mmBtu)']}
-emdf = readin_epa_data('emissions', col_em)
+# PROCESS EMISSIONS DATA
+vars_coll_em = {'id': ['facility_id', 'unit_id', 'facility_name', 'state'],
+          'val': ['gross_load_mwh', 'steam_load_1000_lb', 'so2_mass_short_tons',
+                  'co2_mass_short_tons', 'nox_mass_short_tons', 'heat_input_mmbtu']}
+emdf = readin_epa(YR_START, YR_END, 'emissions', vars_coll=vars_coll_em)
+emdf.to_csv(PATH_PROCESSED + 'epa_emissions.csv', index=False)
+emdf.head()
 
 
 # %%
 # VISUALIZE EMISSIONS DATA
-facility_units = emdf[['Facility ID', 'Unit ID']].drop_duplicates().values
+facility_units = emdf[['facility_id', 'unit_id']].drop_duplicates().values
 for f, u in facility_units[:10]:
-    em = (emdf.loc[(emdf['Facility ID'] == f) & (emdf['Unit ID'] == u), ]
+    em = (emdf.loc[(emdf['facility_id'] == f) & (emdf['unit_id'] == u), ]
           .sort_values('quarter'))
-    plt.plot(em.quarter.dt.to_timestamp().values, em['Gross Load (MWh)'].values)
+    plt.plot(em.quarter.dt.to_timestamp().values, em['gross_load_mwh'].values)
 plt.title('Sample unit-level emissions data by quarter')
 
 # %%
 # VISUALIZE FACILITY DATA
-# temp = (facdf
-#         .loc[~facdf.State.isin(['AK', 'HI', 'PR'])]
-#         .groupby(['Latitude', 'Longitude', 'Year']).agg({'Facility ID':'count'})
-#         .reset_index())
-# geometry = [Point(xy) for xy in zip(temp['Longitude'], temp['Latitude'])]
-# geotemp = gpd.GeoDataFrame(temp, geometry=geometry)
-# for y in geotemp.Year.drop_duplicates().values:
-#     geotempyear = geotemp.loc[geotemp.Year == y]
-#     geotempyear.plot(column='Facility ID', alpha=0.5, legend=True)
-#     plt.title(f'Count of facilities in Year {y}')
-#     plt.show()
-
-# %%
-# SUBSET DATA
-keep_sourcecat = ['Electric Utility', 'Small Power Producer','Cogeneration']
-facs = facdf.loc[facdf['Source Category'].isin(keep_sourcecat)]
-facs['funitID'] = facs['Facility ID'].astype(str) + '.' + facs['Unit ID'].astype(str)
+temp = (facdf
+        .loc[~facdf.state.isin(['AK', 'HI', 'PR'])]
+        .groupby(['latitude', 'longitude', 'year']).agg({'facility_id':'count'})
+        .reset_index())
+geometry = [Point(xy) for xy in zip(temp['longitude'], temp['latitude'])]
+geotemp = gpd.GeoDataFrame(temp, geometry=geometry)
+for y in geotemp.year.drop_duplicates().values:
+    geotempyear = geotemp.loc[geotemp.year == y]
+    geotempyear.plot(column='facility_id', alpha=0.5, legend=True)
+    plt.title(f'Count of facilities in Year {y}')
+    plt.show()
 
 # %%
 # GET COUNTS OF FACILITIES AND UNITS OVER TIME
-faclist = (facs.groupby('Year')[['Facility ID', 'funitID']]
+facs = facdf
+facs['funit_id'] = facs['facility_id'].astype(str) + '.' + facs['unit_id'].astype(str)
+faclist = (facs.groupby('year')[['facility_id', 'unit_id']]
            .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
-faclist.columns = ['Year', 'FacIDs', 'FunitIDs']
+faclist.columns = ['year', 'fac_ids', 'funit_ids']
 
 prev_fids, prev_uids = set(), set()
 counts = {}
 counts['n_f'], counts['n_fnew'], counts['n_fdrop'] = [], [], []
 counts['n_u'], counts['n_unew'], counts['n_udrop'] = [], [], []
 for index, row in faclist.iterrows():
-    curr_fids, curr_uids = row.FacIDs, row.FunitIDs
+    curr_fids, curr_uids = row.fac_ids, row.funit_ids
     # Calculate overlap and new IDs
     counts['n_f'] += [len(curr_fids)]
     counts['n_u'] += [len(curr_uids)]
@@ -92,10 +87,6 @@ for index, row in faclist.iterrows():
 # Add new columns to the DataFrame
 for k, v in counts.items():
     faclist[k] = v
-faclist = faclist.drop(columns=['FacIDs', 'FunitIDs'])
+faclist = faclist.drop(columns=['fac_ids', 'funit_ids'])
 faclist
-
-
-# %%
-facs
 # %%

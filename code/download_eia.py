@@ -6,8 +6,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-PATH_DATA = '../data/'
-PATH_EIA = PATH_DATA + 'eia/'
+from utils import PATH_EIA, PATH_PROCESSED
 
 # %%
 # DOWNLOAD A ZIP FILE

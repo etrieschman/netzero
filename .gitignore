@@ -7,4 +7,3 @@ venv/
 # data files
 data/raw/*
 data/processed/*
-data/*.csv
