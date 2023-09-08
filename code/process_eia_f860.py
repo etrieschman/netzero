@@ -39,7 +39,7 @@ for g in gen_tags:
 gdf.to_csv(PATH_PROCESSED + 'eia_f860_generator.csv', index=False)
 
 # %%
-# OPERATOR DATA
+# OWNER DATA
 vars_keep = ['utility_id', 'plant_code', 'generator_id', 
              'ownership_id', 'status', 'owner_name', 'owner_street_address',
              'owner_city', 'owner_state', 'owner_zip', 'percent_owned']

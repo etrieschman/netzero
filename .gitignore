@@ -1,6 +1,7 @@
 # logs
 *__pycache__*
 code/credentials.py
+*.DS_Store
 
 # virtual environment
 venv/

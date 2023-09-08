@@ -36,7 +36,8 @@ def process_f923(yr_start):
         dfl['date'] = pd.to_datetime(dfl.year.astype(str) + 
                                     dfl['variable'].str.split('_').str[-1],
                                     format='%Y%B')
-        dfl['variable'] = dfl['variable'].str.split('_').str[:-1].str.join('_') 
+        dfl['variable'] = dfl['variable'].str.split('_').str[:-1].str.join('_')
+        dfl = dfl.groupby(vars_id + ['variable'], dropna=False)['value'].sum().reset_index() 
 
         # concatenate
         odf = pd.concat([dfl, odf], axis=0, ignore_index=True)
@@ -50,12 +51,13 @@ odf = process_f923(2018)
 
 
 # %%
-odf
+odf.reported_fuel_type_code.value_counts()
+
+
 # %%
-odf['month'] = odf.date.dt.month
 (odf
- .groupby(['year', 'month', 'variable'])['value'].agg(lambda x: (x>0).count())
+ .groupby(['year', 'variable'])['value'].agg(lambda x: (x>0).count())
  .reset_index()
- .pivot(index=['year', 'variable'], columns='month', values='value')
+ .pivot(index='variable', columns='year', values='value')
  .reset_index())
 # %%
