@@ -82,4 +82,21 @@ for i, row in summ.iterrows():
           set_labels = labels, set_colors = colors)
     if i < 4:
         axs[i].set_title(int(row['year']))
+
+
+# %%
+xwalk['camd_genid'] = (xwalk.camd_plant_id.astype(str) + 
+                    xwalk.camd_unit_id.astype(str))
+xwalk['camd_genuid'] = (xwalk.camd_plant_id.astype(str) + 
+                    xwalk.camd_unit_id.astype(str) + 
+                    xwalk.camd_generator_id.astype(str))
+xwalk['eia_genid'] = (xwalk.eia_plant_id.astype(str) + 
+                    xwalk.eia_generator_id.astype(str))
+xwalk['eia_genboid'] = (xwalk.eia_plant_id.astype(str) + 
+                    xwalk.eia_generator_id.astype(str) + 
+                    xwalk.eia_boiler_id.astype(str))
+
+xwalk[['camd_plant_id', 'camd_genid', 'camd_genuid',
+       'eia_plant_id', 'eia_genid', 'eia_genboid']].nunique()
+
 # %%

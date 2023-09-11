@@ -15,7 +15,8 @@ pd.set_option('display.max_rows', 25)
 # UTILITY DATA
 yr_start = 2018
 vars_keep = ['utility_id', 'utility_name', 'city', 'state', 'entity_type']
-udf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '1___Utility_Y', vars_keep, 1)
+udf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '1___Utility_Y', vars_keep, 
+                 readin_params={'header':1})
 udf.to_csv(PATH_PROCESSED + 'eia_f860_utility.csv', index=False)
 
 # %%
@@ -23,7 +24,8 @@ udf.to_csv(PATH_PROCESSED + 'eia_f860_utility.csv', index=False)
 vars_keep = ['utility_id', 'plant_code', 'plant_name',
        'city', 'state', 'zip', 'county', 'latitude',
        'longitude', 'primary_purpose_naics_code']
-pdf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '2___Plant_Y', vars_keep, 1)
+pdf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '2___Plant_Y', 
+                 readin_params={'header':1})
 pdf.to_csv(PATH_PROCESSED + 'eia_f860_plant.csv', index=False)
 
 # %%
@@ -34,7 +36,10 @@ vars_keep = ['utility_id', 'plant_code', 'generator_id',
 gdf = pd.DataFrame({})
 for g in gen_tags:
     print('Generator type:', g)
-    df = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', f'3_{g}_Y', vars_keep, 1)
+    df = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', f'3_{g}_Y', vars_keep, 
+                    readin_params={'header':1})
+    df['utility_id'] = pd.to_numeric(df.utility_id, errors='coerce').astype('Int64')
+    df = df.loc[df.utility_id.notna()]
     gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
 gdf.to_csv(PATH_PROCESSED + 'eia_f860_generator.csv', index=False)
 
@@ -43,7 +48,8 @@ gdf.to_csv(PATH_PROCESSED + 'eia_f860_generator.csv', index=False)
 vars_keep = ['utility_id', 'plant_code', 'generator_id', 
              'ownership_id', 'status', 'owner_name', 'owner_street_address',
              'owner_city', 'owner_state', 'owner_zip', 'percent_owned']
-odf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '4___Owner_y', vars_keep, 1)
+odf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '4___Owner_y', 
+                 readin_params={'header':1})
 odf.to_csv(PATH_PROCESSED + 'eia_f860_ownership.csv', index=False)
 
 
