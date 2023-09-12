@@ -14,42 +14,61 @@ pd.set_option('display.max_rows', 25)
 # %%
 # UTILITY DATA
 yr_start = 2018
-vars_keep = ['utility_id', 'utility_name', 'city', 'state', 'entity_type']
+vars_keep = ['utility_id', 'utility_name', 'city', 'state', 'zip', 'entity_type']
 udf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '1___Utility_Y', vars_keep, 
                  readin_params={'header':1})
+udf['utility_id'] = pd.to_numeric(udf.utility_id).astype('Int64')
 udf.to_csv(PATH_PROCESSED + 'eia_f860_utility.csv', index=False)
 
 # %%
 # PLANT DATA
-vars_keep = ['utility_id', 'plant_code', 'plant_name',
-       'city', 'state', 'zip', 'county', 'latitude',
+vars_keep = ['utility_id', 'plant_code', 'plant_name', 'latitude',
        'longitude', 'primary_purpose_naics_code']
-pdf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '2___Plant_Y', 
+pdf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '2___Plant_Y', vars_keep, 
                  readin_params={'header':1})
+pdf['utility_id'] = pd.to_numeric(pdf.utility_id).astype('Int64')
+pdf['plant_code'] = pd.to_numeric(pdf.plant_code).astype('Int64')
 pdf.to_csv(PATH_PROCESSED + 'eia_f860_plant.csv', index=False)
 
 # %%
 # GENERATOR DATA
-gen_tags = ['1_Generator', '2_Wind', '3_Solar', '4_Energy_Storage', '5_Multifuel']
-vars_keep = ['utility_id', 'plant_code', 'generator_id', 
-             'technology', 'prime_mover', 'nameplate_capacity_mw']
+sheets = ['Operable', 'Retired and Canceled']
+gen_tags = {'1_Generator':{'sheets':sheets + ['Proposed']}, 
+            '2_Wind':{'sheets':sheets}, 
+            '3_Solar':{'sheets':sheets}, 
+            '4_Energy_Storage':{'sheets':sheets}, 
+            '5_Multifuel':{'sheets':sheets + ['Proposed']}}
+vars_date = ['operating_month', 'operating_year',
+             'current_month', 'current_year',
+             'planned_retirement_month', 'planned_retirement_year',
+             'retirement_month', 'retirement_year']
+vars_keep = ['utility_id', 'plant_code', 'generator_id', 'status', 'ownership', 'sector', 
+             'technology', 'prime_mover', 'nameplate_capacity_mw'] + vars_date
 gdf = pd.DataFrame({})
-for g in gen_tags:
+for g in gen_tags.keys():
     print('Generator type:', g)
-    df = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', f'3_{g}_Y', vars_keep, 
-                    readin_params={'header':1})
-    df['utility_id'] = pd.to_numeric(df.utility_id, errors='coerce').astype('Int64')
-    df = df.loc[df.utility_id.notna()]
-    gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
+    for s in gen_tags[g]['sheets']:
+        df = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', f'3_{g}_Y', vars_keep, 
+                        readin_params={'header':1, 'sheet_name':s})
+        df['sheet_gen'] = s.lower().replace(' ', '_')
+        df['utility_id'] = pd.to_numeric(df.utility_id, errors='coerce').astype('Int64')
+        df['plant_code'] = pd.to_numeric(df.plant_code, errors='coerce').astype('Int64')
+        df['generator_id'] = df.generator_id.astype(str, errors='ignore')
+        df['nameplate_capacity_mw'] = pd.to_numeric(df.nameplate_capacity_mw, errors='coerce').astype('Float64')
+        for var in df.columns.intersection(vars_date):
+            df[var] = pd.to_numeric(df[var], errors='coerce').astype('Int64')
+        df = df.loc[df.utility_id.notna()]
+        gdf = pd.concat([df, gdf], axis=0, ignore_index=True)
 gdf.to_csv(PATH_PROCESSED + 'eia_f860_generator.csv', index=False)
 
 # %%
 # OWNER DATA
 vars_keep = ['utility_id', 'plant_code', 'generator_id', 
-             'ownership_id', 'status', 'owner_name', 'owner_street_address',
+             'ownership_id', 'status', 'owner_name',
              'owner_city', 'owner_state', 'owner_zip', 'percent_owned']
-odf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '4___Owner_y', 
+odf = readin_eia(YR_START, YR_END, f'{PATH_EIA}f860', '4___Owner_y', vars_keep,
                  readin_params={'header':1})
+odf['percent_owned'] = pd.to_numeric(odf.percent_owned.astype(str).str.strip())
 odf.to_csv(PATH_PROCESSED + 'eia_f860_ownership.csv', index=False)
 
 

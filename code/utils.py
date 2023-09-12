@@ -17,7 +17,7 @@ def readin_eia(yr_start, yr_end, path_folder, path_file, vars_keep=None,
                       .str.replace(' ', '_')
                       .str.replace('(', '').str.replace(')',''))
         if vars_keep is not None:
-            df = df[vars_keep]
+            df = df[df.columns.intersection(vars_keep)]
         df['year'] = y
         sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
     return sdf
