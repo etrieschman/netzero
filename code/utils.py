@@ -1,25 +1,49 @@
 import os
 import pandas as pd
 from tqdm import tqdm
+import re
 
 PATH_DATA = '../data/'
 PATH_EPA = PATH_DATA + 'raw/epa/'
 PATH_EIA = PATH_DATA + 'raw/eia/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 
-def readin_eia(yr_start, yr_end, path_folder, path_file, vars_keep=None, 
-               readin_params={'header':0}, suff='.xlsx'):
-    years = range(yr_start, yr_end+1)
+def readin_eia(path_folder, readin_dict):
     sdf = pd.DataFrame({})
-    for y in tqdm(years):
-        df = pd.read_excel(f'{path_folder}/{y}/{path_file}{y}{suff}', **readin_params)
+    for y in tqdm(readin_dict.keys()):
+        df = pd.read_excel(f'{path_folder}/{y}/{readin_dict[y]["path_file"]}', 
+                           **readin_dict[y]['excel_params'])
         df.columns = (df.columns.str.lower()
                       .str.replace(' ', '_')
                       .str.replace('(', '').str.replace(')',''))
-        if vars_keep is not None:
-            df = df[df.columns.intersection(vars_keep)]
+        # print(y)
+        # print(df.columns)
+        df = df.rename(columns=readin_dict[y]['rename_vars'])
+        df = df[df.columns.intersection(readin_dict[y]['vars_keep'])]
         df['year'] = y
         sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
+    return sdf
+
+def readin_eia_gen(path_folder, readin_dict):
+    sdf = pd.DataFrame({})
+    for y in readin_dict.keys():
+        for f in tqdm(readin_dict[y]['files'], postfix=f'Year: {y}'):
+            dfs = pd.read_excel(f'{path_folder}/{y}/{f}', sheet_name=None,
+                                    **readin_dict[y]['excel_params'])
+            if type(dfs) != dict:
+                dfs = {False:dfs}
+            for k, df in dfs.items():
+                df.columns = (df.columns.str.lower()
+                            .str.replace(' ', '_')
+                            .str.replace('(', '').str.replace(')',''))
+                if 'rename_vars' in readin_dict[y].keys():
+                    df = df.rename(columns=readin_dict[y]['rename_vars'])
+                df = df[df.columns.intersection(readin_dict[y]['vars_keep'])]
+                df['year'] = y
+                df['sheet'] = k
+                df['gen_category'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+', '', f)
+                sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
+
     return sdf
 
 

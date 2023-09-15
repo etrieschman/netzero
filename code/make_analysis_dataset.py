@@ -11,28 +11,35 @@ pd.set_option('display.max_rows', 50)
 
 # %%
 # READIN DATA
-generator = pd.read_csv(PATH_PROCESSED + 'eia_f860_generator.csv',
-                        dtype={'nameplate_capacity_mw':object,
-                               'ownership': str})
-plant = pd.read_csv(PATH_PROCESSED + 'eia_f860_plant.csv')
-utility = pd.read_csv(PATH_PROCESSED + 'eia_f860_utility.csv')
-owner = pd.read_csv(PATH_PROCESSED + 'eia_f860_ownership.csv')
+# generator = pd.read_csv(PATH_PROCESSED + 'eia_f860_generator.csv',
+#                         dtype={'nameplate_capacity_mw':object,
+#                                'ownership': str})
+plant = pd.read_parquet(PATH_PROCESSED + 'eia_f860_plant.parquet')
+utility = pd.read_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet')
+owner = pd.read_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet')
 
 # %%
 # Q: DOES OWNERSHIP ADD UP? No
-print(owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'])['percent_owned'].sum().value_counts())
+print(owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'])['percent_owned'].sum().value_counts().sort_index())
 # DECISIONS:
-# 1. Set all missing ownership to 100%
-# 2. Manual fix upon inspection of ownership ID 7239 (should be 1., not 0.1)
-# 3. Could not figure out what is happening with the Conemaugh Hydro plant (52173). 
-#    Looks like possible consolidation of ownership, or possibly omitted reporting. Leaving as is
-# 4. Decided not to change Long Beach Generation since it's a retired plant
-owner.loc[owner.percent_owned.isna(), 'percent_owned'] = 1.
-owner.loc[owner.ownership_id == 7239, 'percent_owned'] = 1.
+# 0. Divide by 100 in settings where decimal is off
+# 1. If owner_count is 1 and percent ownership is "close" to 1, nudge to 1
+# 2. Set all missing ownership to 100% if only 1 owner; 
+#    Set missing ownership to 0% if missing, but sum of ownership is 1
+# 3. TODO: 2010 is a messy year that needs to be reconciled
 owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
 owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
-display(owner.loc[owner.pct_ownership_total != 1.])
-owner = owner.drop(columns=['pct_ownership_total', 'owner_count'])
+owner.loc[owner.pct_ownership_total == 100., 'percent_owned'] /= 100.
+owner.loc[(owner.owner_count == 1) & 
+    (np.abs(owner.pct_ownership_total - 1) <= 0.02), 'percent_owned'] = 1.
+owner.loc[(owner.percent_owned.isna()) & (owner.owner_count == 0), 'percent_owned'] = 1.
+owner.loc[(owner.percent_owned.isna()) & (owner.owner_count > 0), 'percent_owned'] = 0.
+
+print(owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'])['percent_owned'].sum().value_counts().sort_index())
+owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
+owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
+display(owner.loc[np.abs(owner.pct_ownership_total - 1.) >= 0.02])
+# owner = owner.drop(columns=['pct_ownership_total', 'owner_count'])
 
 # %%
 # MERGE

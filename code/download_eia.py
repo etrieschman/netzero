@@ -34,7 +34,7 @@ def get_eia_zips(url, start_year):
 
 
 # %%
-START_YEAR = 2018
+START_YEAR = 2006
 
 # %%
 # DOWNLOAD UTILITY-LEVEL DATA
