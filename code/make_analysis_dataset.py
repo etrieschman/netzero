@@ -11,9 +11,7 @@ pd.set_option('display.max_rows', 50)
 
 # %%
 # READIN DATA
-# generator = pd.read_csv(PATH_PROCESSED + 'eia_f860_generator.csv',
-#                         dtype={'nameplate_capacity_mw':object,
-#                                'ownership': str})
+generator = pd.read_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet')
 plant = pd.read_parquet(PATH_PROCESSED + 'eia_f860_plant.parquet')
 utility = pd.read_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet')
 owner = pd.read_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet')
