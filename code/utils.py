@@ -3,6 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 import re
 
+PATH_RESULTS = '../results/'
 PATH_DATA = '../data/'
 PATH_EPA = PATH_DATA + 'raw/epa/'
 PATH_EIA = PATH_DATA + 'raw/eia/'

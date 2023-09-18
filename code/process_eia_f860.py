@@ -42,14 +42,34 @@ for year in u_readin_dict.keys():
 
 udf = readin_eia(path_folder=f'{PATH_EIA}f860', readin_dict=u_readin_dict)
 # 2010 is a messy year with repeat rows. drop these
-udf = udf.loc[~((udf.year == 2010) & udf.duplicated())]
+# udf = udf.loc[~((udf.year == 2010) & udf.duplicated())]
 udf['utility_id'] = pd.to_numeric(udf.utility_id).astype('Int64')
-udf = udf.astype({'utility_name':str, 'city_util':str, 'state_util':str, 'zip_util':str})
-udf.to_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet', index=False)
+udf['zip_util'] = pd.to_numeric(udf.zip_util.astype(str).str.strip(), errors='coerce').astype('Int64')
+
+# %%
+# LOOK AT DUPLICATES
+udf['dup_key'] = udf.utility_id.astype(str) + '_' + udf.year.astype(str)
+udf['duplicate'] = udf.dup_key.isin(udf.loc[udf.dup_key.duplicated(), 'dup_key'].drop_duplicates())
+print('number of dups, by year: ')
+display(udf.loc[udf.duplicate].groupby('year')['utility_id'].count())
+# NOTE: All the issues are in 2010, and it looks like it's because of differences in naming etc.
+udf['num_cols_nan'] = udf.isna().sum(axis=1)
+udf['min_num_cols_nan'] = udf.groupby('dup_key')['num_cols_nan'].transform('min')
+# drop the duplicate row with the most missing info. If both have smae missing, doesn't matter
+udf['dup_keep'] = True
+udf.loc[(udf.num_cols_nan != udf.min_num_cols_nan) & udf.duplicate, 'dup_keep'] = False
+udf_dedup = udf.loc[udf.dup_keep]
+# for remaining, drop duplicate arbitrarily
+udf_dedup = udf_dedup.loc[~udf.dup_key.duplicated()]
+udf_dedup.drop(columns=['num_cols_nan', 'min_num_cols_nan', 'dup_keep'])
+print('number of dups remaining:', udf_dedup.dup_key.duplicated().sum())
+# WRITE TO FILE
+udf_dedup = udf_dedup.astype({'utility_name':str, 'city_util':str, 'state_util':str})
+udf_dedup.to_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet', index=False)
 
 # %%
 # PLANT DATA
-vars_keep = ['utility_id', 'plant_code', 'plant_name', 'state_plant', 'zip_plant', 'latitude', 'longitude', 'primary_purpose_naics_code']
+vars_keep = ['utility_id', 'plant_code', 'plant_name', 'state_plant', 'zip_plant', 'latitude', 'longitude', 'naics_primary']
 p_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
 for year in p_readin_dict.keys():
     p_readin_dict[year]['vars_keep'] = vars_keep
@@ -172,12 +192,11 @@ gdf['dup_anyingen'] = gdf.groupby('dup_key')['dup_ingen'].transform('sum')
 gdf['dup_keep'] = True
 gdf.loc[~gdf.dup_ingen & gdf.dup_anyingen, 'dup_keep'] = False
 print('remaining dups:', gdf.loc[gdf.dup_keep, 'dup_key'].duplicated().sum())
-gdf.drop(columns=['dup_key', 'dup_ingen', 'dup_anyingen', 'dup_keep'], inplace=True)
-
-# %% 
+gdf_dedup = gdf.loc[gdf.dup_keep]
+gdf_dedup.drop(columns=['dup_key', 'dup_ingen', 'dup_anyingen', 'dup_keep'], inplace=True)
 # WRITE TO FILE
-gdf = gdf.astype({'status':str, 'prime_mover':str})
-gdf.to_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet', index=False)
+gdf_dedup = gdf_dedup.astype({'status':str, 'prime_mover':str})
+gdf_dedup.to_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet', index=False)
 
 # %%
 # OWNER DATA
@@ -189,7 +208,7 @@ for year in o_readin_dict.keys():
     if year >= 2013:
         o_readin_dict[year]['path_file'] = f'4___Owner_Y{year}.xlsx'
         o_readin_dict[year]['excel_params'] = {'header':1}
-        o_readin_dict[year]['rename_vars'] = {'owner_state':'state_owner', 'owner_zip':'zip_owner'}
+        o_readin_dict[year]['rename_vars'] = {'city_owner':'owner_city', 'owner_state':'state_owner', 'owner_zip':'zip_owner'}
     elif year >= 2012:
         o_readin_dict[year]['path_file'] = f'OwnerY{year}.xlsx'
         o_readin_dict[year]['excel_params'] = {'header':1}
