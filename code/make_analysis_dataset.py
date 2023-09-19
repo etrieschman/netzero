@@ -17,6 +17,7 @@ generator = pd.read_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet')
 plant = pd.read_parquet(PATH_PROCESSED + 'eia_f860_plant.parquet')
 utility = pd.read_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet')
 owner = pd.read_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet')
+emissions = pd.read_parquet(PATH_PROCESSED + 'eia_emissions.parquet')
 
 # %%
 # Q: DOES OWNERSHIP ADD UP? No
@@ -84,9 +85,33 @@ display(plant.loc[~plant.merge_key.isin(m_gou.merge_key.drop_duplicates())].grou
 plant.drop(columns='merge_key', inplace=True)
 m_gou.drop(columns='merge_key', inplace=True)
 print('plant ID-years:\t\t', len(plant))
-m = pd.merge(left=m_gou, right=plant, how='inner', on=['utility_id', 'plant_code', 'year'])
-print('CHECK: merged ID-years\t', len(m))
+m_goup = pd.merge(left=m_gou, right=plant, how='inner', on=['utility_id', 'plant_code', 'year'])
+print('CHECK: merged ID-years\t', len(m_goup))
 
+# %%
+# MERGE EMISSIONS --> (PLANT/UTILITY/GEN/OWNER)
+emissions['merge_key'] = emissions.plant_code.astype(str) + '_' + emissions.year.astype(str)
+m_goup['merge_key'] = m_goup.plant_code.astype(str) + '_' + m_goup.year.astype(str)
+print('plant ID in merge dataset, but not in emissions:')
+display(m_goup.loc[
+    ~m_goup.merge_key.isin(emissions.merge_key.drop_duplicates())
+    & (m_goup.prime_mover.isin(['ST', 'GT', 'IC', 'CA', 'CT', 'CS', 'CC', 'BT']))
+    & ~(m_goup.status.isin(['CN','IP', 'TS','P','L','T','U','V','OT',
+                            'SB', 'OA', 'OS', 'RE']))].groupby('year')['utility_id'].count())
+# FINDING: About 2000 each year. This might actually be that these generators weren't opearating in any year. Need to check f923
+print('plant ID in emissions dataset, but not in merge')
+display(emissions.loc[~emissions.merge_key.isin(m_goup.merge_key.drop_duplicates())])
+# FINDING: inexplicable 2 plants in 2 years. Need to confirm in f923
+emissions.drop(columns='merge_key', inplace=True)
+emissions = (
+    emissions.groupby(['plant_code', 'year'])
+    [['generation_kwh', 'total_fuel_consumption_mmbtu',
+    'fuel_consumption_for_electric_generation_mmbtu','tons_of_co2_emissions']]
+    .sum().reset_index())
+m_goup.drop(columns='merge_key', inplace=True)
+print('emission ID-years:\t', len(emissions))
+m = pd.merge(left=m_goup, right=emissions, how='left', on=['plant_code', 'year'])
+print('CHECK: merged ID-years:\t', len(m))
 
 # %% 
 # UPDATE COLUMNS: OWNERSHIP TYPE
@@ -161,7 +186,11 @@ m_final = m_cln[[
     'plant_name', 'state_plant', 'zip_plant', 'latitude', 'longitude', 'percent_owned',
     'entity_type', 'naics_primary', 'sector', 
     'prime_mover', 'energy_source_1', 'cofire_energy_source_1', 'nameplate_capacity_mw', 
-    'status', 'status_simp', 'dt_operation_start', 'dt_operation_end']]
+    'status', 'status_simp', 'dt_operation_start', 'dt_operation_end',
+    'generation_kwh', 'total_fuel_consumption_mmbtu', 'fuel_consumption_for_electric_generation_mmbtu',
+    'tons_of_co2_emissions']]
+
+m_final.to_parquet(PATH_PROCESSED + 'eia_final.parquet')
 
 # %%
 # MAKE DATASET FOR SANKEY DIAGRAM
@@ -169,7 +198,7 @@ m_final = m_cln[[
 m_util = m_final.drop(columns=['ownership_id', 'ownership', 'owner_name', 'city_owner', 'state_owner', 'zip_owner', 'percent_owned']).drop_duplicates()
 m_util['id'] = m_util.plant_code.astype(str) + '_' + m_util.generator_id
 base = pd.DataFrame(itertools.product(m_util.id.drop_duplicates().values, m_util.year.drop_duplicates().values), columns=['id', 'year'])
-mu_all = pd.merge(left=base, right=m_util[['id', 'year', 'status', 'status_simp']], on=['id', 'year'], how='left').sort_values(['id', 'year'])
+mu_all = pd.merge(left=base, right=m_util[['id', 'year', 'status', 'status_simp']], on=['id', 'year'], how='left').drop_duplicates().sort_values(['id', 'year'])
 mu_all['status_prev'] = mu_all.groupby('id')['status_simp'].shift(1)
 mu_all['status'] = mu_all.status_simp
 mu_all_summ = mu_all.groupby(['year', 'status_prev', 'status'], dropna=False)['id'].count().reset_index()

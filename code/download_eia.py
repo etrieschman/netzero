@@ -9,6 +9,16 @@ from tqdm import tqdm
 from utils import PATH_EIA, PATH_PROCESSED
 
 # %%
+# GET ALL FILES THAT END IN SPECIFIC SUFFIX
+def get_eia_files(url, start_year, suffs='.zip'):
+    req = requests.get(url)
+    soup = BeautifulSoup(req.content, 'html.parser')
+    zips = [z['href'] for z in soup.findAll('a', href=True) if z['href'].endswith(suffs)]
+    zips_sub = [z for z in zips if z[z.find(suffs)-4:z.find(suffs)-2] in ['19', '20']]
+    return [f'{url}{z}' for z in zips_sub if int(z[z.find(suffs)-4:z.find(suffs)]) >= start_year]
+
+
+# %%
 # DOWNLOAD A ZIP FILE
 def download_zip(url, path_save):
     fn = url.split('/')[-1]
@@ -22,15 +32,13 @@ def download_zip(url, path_save):
     path = f'{path_save}' if downfiles[0].startswith(f'{year}/') else f'{path_save}{year}/'
     zip.extractall(path, members=downfiles)
 
-
 # %%
-# GET ALL ZIP FILES
-def get_eia_zips(url, start_year):
+# DOWNLOAD A DIRECT FILE
+def download_file(url, path_save):
+    fn = url.split('/')[-1]
     req = requests.get(url)
-    soup = BeautifulSoup(req.content, 'html.parser')
-    zips = [z['href'] for z in soup.findAll('a', href=True) if z['href'].endswith('.zip')]
-    zips_sub = [z for z in zips if z[z.find('.zip')-4:z.find('.zip')-2] in ['19', '20']]
-    return [f'{url}{z}' for z in zips_sub if int(z[z.find('.zip')-4:z.find('.zip')]) >= start_year]
+    with open(path_save + fn, 'wb') as output:
+        output.write(req.content)
 
 
 # %%
@@ -39,14 +47,14 @@ START_YEAR = 2006
 # %%
 # DOWNLOAD UTILITY-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia861/'
-zip_paths = get_eia_zips(url, START_YEAR)
+zip_paths = get_eia_files(url, START_YEAR)
 for zp in tqdm(zip_paths):
     download_zip(zp, PATH_EIA + 'f861/')
 
 # %%
 # DOWNLOAD PLANT-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia860/'
-zip_paths = get_eia_zips(url, START_YEAR)
+zip_paths = get_eia_files(url, START_YEAR)
 for zp in tqdm(zip_paths):
     download_zip(zp, PATH_EIA + 'f860/')
 
@@ -54,7 +62,15 @@ for zp in tqdm(zip_paths):
 # %%
 # DOWNLOAD OPERATIONS-LEVEL DATA
 url = 'https://www.eia.gov/electricity/data/eia923/'
-zip_paths = get_eia_zips(url, START_YEAR)
+zip_paths = get_eia_files(url, START_YEAR)
 for zp in tqdm(zip_paths):
     download_zip(zp, PATH_EIA + 'f923/')
+
+# %%
+url = 'https://www.eia.gov/electricity/data/emissions/'
+file_paths = get_eia_files(url, START_YEAR, suffs='.xlsx')
+for f in tqdm(file_paths):
+    if 'region' in f:
+        continue
+    download_file(f, PATH_EIA + 'emissions/')
 # %%

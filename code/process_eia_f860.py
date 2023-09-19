@@ -8,7 +8,7 @@ import os
 from utils import PATH_EIA, PATH_PROCESSED
 from utils import readin_eia, readin_eia_gen
 
-YR_START, YR_END = 2006, 2021
+YR_START, YR_END = 2013, 2021
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 70)
@@ -20,27 +20,27 @@ u_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
 for year in u_readin_dict.keys():
     u_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
-        u_readin_dict[year]['path_file'] = f'1___Utility_Y{year}.xlsx'
+        u_readin_dict[year]['path_file'] = f'{year}/1___Utility_Y{year}.xlsx'
         u_readin_dict[year]['excel_params'] = {'header':1}
         u_readin_dict[year]['rename_vars'] = {'city':'city_util', 'state':'state_util', 'zip':'zip_util'}
     elif year >= 2011:
-        u_readin_dict[year]['path_file'] = f'UtilityY{year}.xlsx'
+        u_readin_dict[year]['path_file'] = f'{year}/UtilityY{year}.xlsx'
         u_readin_dict[year]['excel_params'] = {'header':1}
         u_readin_dict[year]['rename_vars'] = {'city':'city_util', 'state':'state_util', 'zip5':'zip_util'}
     elif year >= 2010:
-        u_readin_dict[year]['path_file'] = f'UtilityY{year}.xls'
+        u_readin_dict[year]['path_file'] = f'{year}/UtilityY{year}.xls'
         u_readin_dict[year]['excel_params'] = {'header':0}
         u_readin_dict[year]['rename_vars'] = {'utility_city':'city_util', 'utility_state':'state_util', 'utility_zip5':'zip_util'}
     elif year >= 2009:
-        u_readin_dict[year]['path_file'] = f'UtilityY{str(year)[2:]}.xls'
+        u_readin_dict[year]['path_file'] = f'{year}/UtilityY{str(year)[2:]}.xls'
         u_readin_dict[year]['excel_params'] = {'header':0}
         u_readin_dict[year]['rename_vars'] = {'utility_city':'city_util', 'utility_state':'state_util', 'utility_zip5':'zip_util'}
     elif year >= 2006:
-        u_readin_dict[year]['path_file'] = f'UtilY{str(year)[2:]}.xls'
+        u_readin_dict[year]['path_file'] = f'{year}/UtilY{str(year)[2:]}.xls'
         u_readin_dict[year]['excel_params'] = {'header':0}
         u_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'utilname':'utility_name', 'city':'city_util', 'state':'state_util', 'zipcode':'zip_util'}
 
-udf = readin_eia(path_folder=f'{PATH_EIA}f860', readin_dict=u_readin_dict)
+udf = readin_eia(path_folder=f'{PATH_EIA}f860/', readin_dict=u_readin_dict)
 # 2010 is a messy year with repeat rows. drop these
 # udf = udf.loc[~((udf.year == 2010) & udf.duplicated())]
 udf['utility_id'] = pd.to_numeric(udf.utility_id).astype('Int64')
@@ -74,32 +74,32 @@ p_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
 for year in p_readin_dict.keys():
     p_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
-        p_readin_dict[year]['path_file'] = f'2___Plant_Y{year}.xlsx'
+        p_readin_dict[year]['path_file'] = f'{year}/2___Plant_Y{year}.xlsx'
         p_readin_dict[year]['excel_params'] = {'header':1}
         p_readin_dict[year]['rename_vars'] = {'state':'state_plant', 'zip':'zip_plant', 'primary_purpose_naics_code':'naics_primary'}
     elif year >= 2012:
-        p_readin_dict[year]['path_file'] = f'PlantY{year}.xlsx'
+        p_readin_dict[year]['path_file'] = f'{year}/PlantY{year}.xlsx'
         p_readin_dict[year]['excel_params'] = {'header':1}
         p_readin_dict[year]['rename_vars'] = {'state':'state_plant', 'zip':'zip_plant', 'primary_purpose_naics_code':'naics_primary'}
     elif year >= 2011:
-        p_readin_dict[year]['path_file'] = f'Plant.xlsx'
+        p_readin_dict[year]['path_file'] = f'{year}/Plant.xlsx'
         p_readin_dict[year]['excel_params'] = {'header':1}
         p_readin_dict[year]['rename_vars'] = {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'}
     elif year >= 2010:
-        p_readin_dict[year]['path_file'] = f'PlantY{year}.xls'
+        p_readin_dict[year]['path_file'] = f'{year}/PlantY{year}.xls'
         p_readin_dict[year]['excel_params'] = {'header':0}
         p_readin_dict[year]['rename_vars'] = {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'}
     elif year >= 2009:
-        p_readin_dict[year]['path_file'] = f'PlantY{str(year)[2:]}.xls'
+        p_readin_dict[year]['path_file'] = f'{year}/PlantY{str(year)[2:]}.xls'
         p_readin_dict[year]['excel_params'] = {'header':0}
         p_readin_dict[year]['rename_vars'] = {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'}
     elif year >= 2006:
-        p_readin_dict[year]['path_file'] = f'PlantY{str(year)[2:]}.xls'
+        p_readin_dict[year]['path_file'] = f'{year}/PlantY{str(year)[2:]}.xls'
         p_readin_dict[year]['excel_params'] = {'header':0}
         p_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'plntcode':'plant_code', 'plntname':'plant_name', 'state':'state_plant', 'plntzip':'zip_plant', 'zip5':'zip_plant', 'naics':'naics_primary', 'primary_purpose':'naics_primary'}
 
 
-pdf = readin_eia(f'{PATH_EIA}f860', p_readin_dict)
+pdf = readin_eia(f'{PATH_EIA}f860/', p_readin_dict)
 pdf['utility_id'] = pd.to_numeric(pdf.utility_id).astype('Int64')
 pdf['plant_code'] = pd.to_numeric(pdf.plant_code).astype('Int64')
 pdf['zip_plant'] = pd.to_numeric(pdf.zip_plant.astype(str).str.strip(), errors='coerce').astype('Int64')
@@ -121,38 +121,38 @@ for year in g_readin_dict.keys():
     g_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2016:
         g_readin_dict[year]['files'] = [
-            f'3_1_Generator_Y{str(year)}.xlsx', 
-            f'3_2_Wind_Y{year}.xlsx', 
-            f'3_3_Solar_Y{year}.xlsx', 
-            f'3_4_Energy_Storage_Y{year}.xlsx',
-            f'3_5_Multifuel_Y{year}.xlsx']
+            f'{year}/3_1_Generator_Y{str(year)}.xlsx', 
+            f'{year}/3_2_Wind_Y{year}.xlsx', 
+            f'{year}/3_3_Solar_Y{year}.xlsx', 
+            f'{year}/3_4_Energy_Storage_Y{year}.xlsx',
+            f'{year}/3_5_Multifuel_Y{year}.xlsx']
         g_readin_dict[year]['excel_params'] = {'header':1}
         g_readin_dict[year]['rename_vars'] = {}
     elif year >= 2013:
         g_readin_dict[year]['files'] = [
-            f'3_1_Generator_Y{str(year)}.xlsx',
-            f'3_2_Wind_Y{year}.xlsx',
-            f'3_3_Solar_Y{year}.xlsx',
-            f'3_4_Multifuel_Y{year}.xlsx']
+            f'{year}/3_1_Generator_Y{str(year)}.xlsx',
+            f'{year}/3_2_Wind_Y{year}.xlsx',
+            f'{year}/3_3_Solar_Y{year}.xlsx',
+            f'{year}/3_4_Multifuel_Y{year}.xlsx']
         g_readin_dict[year]['excel_params'] = {'header':1}
         g_readin_dict[year]['rename_vars'] = {}
     elif year >= 2011:
-        g_readin_dict[year]['files'] = [f'GeneratorY{year}.xlsx', f'MultifuelY{year}.xlsx']
+        g_readin_dict[year]['files'] = [f'{year}/GeneratorY{year}.xlsx', f'{year}/MultifuelY{year}.xlsx']
         g_readin_dict[year]['excel_params'] = {'header':1}
         g_readin_dict[year]['rename_vars'] = {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
     elif year >= 2010:
-        g_readin_dict[year]['files'] = [f'GeneratorsY{year}.xls', f'MultiFuelY{year}.xls']
+        g_readin_dict[year]['files'] = [f'{year}/GeneratorsY{year}.xls', f'{year}/MultiFuelY{year}.xls']
         g_readin_dict[year]['excel_params'] = {'header':0}
         g_readin_dict[year]['rename_vars'] = {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
     elif year >= 2009:
-        g_readin_dict[year]['files'] = [f'GeneratorY{str(year)[2:]}.xls', f'MultiFuelY{str(year)[2:]}.xls']
+        g_readin_dict[year]['files'] = [f'{year}/GeneratorY{str(year)[2:]}.xls', f'{year}/MultiFuelY{str(year)[2:]}.xls']
         g_readin_dict[year]['excel_params'] = {'header':0}
         g_readin_dict[year]['rename_vars'] = {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
     elif year >= 2006:
-        g_readin_dict[year]['files'] = [f'GenY{str(year)[2:]}.xls',
-                                        f'MFExistY{str(year)[2:]}.xls',
-                                        f'MFPropY{str(year)[2:]}.xls',
-                                        f'PRGenY{str(year)[2:]}.xls']
+        g_readin_dict[year]['files'] = [f'{year}/GenY{str(year)[2:]}.xls',
+                                        f'{year}/MFExistY{str(year)[2:]}.xls',
+                                        f'{year}/MFPropY{str(year)[2:]}.xls',
+                                        f'{year}/PRGenY{str(year)[2:]}.xls']
         g_readin_dict[year]['excel_params'] = {'header':0}
         g_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'plntcode':'plant_code', 'gencode':'generator_id',
                                               'owner':'ownership', 'primemover':'prime_mover', 'nameplate':'nameplate_capacity_mw',
@@ -160,13 +160,8 @@ for year in g_readin_dict.keys():
                                               'retiremonth':'retirement_month', 'retireyear':'retirement_year',
                                               'prop_cofire_energy_source_1':'cofire_energy_source_1',
                                               'proposed_nameplate':'nameplate_capacity_mw', 'proposed_energy_source_1':'energy_source_1'}
-                                              
 
-
-
-
-
-gdf = readin_eia_gen(f'{PATH_EIA}f860', g_readin_dict)
+gdf = readin_eia_gen(f'{PATH_EIA}f860/', g_readin_dict)
 # %%
 gdf['utility_id'] = pd.to_numeric(gdf.utility_id, errors='coerce').astype('Int64')
 gdf = gdf.loc[gdf.utility_id.notna()]
@@ -206,32 +201,32 @@ o_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
 for year in o_readin_dict.keys():
     o_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
-        o_readin_dict[year]['path_file'] = f'4___Owner_Y{year}.xlsx'
+        o_readin_dict[year]['path_file'] = f'{year}/4___Owner_Y{year}.xlsx'
         o_readin_dict[year]['excel_params'] = {'header':1}
         o_readin_dict[year]['rename_vars'] = {'city_owner':'owner_city', 'owner_state':'state_owner', 'owner_zip':'zip_owner'}
     elif year >= 2012:
-        o_readin_dict[year]['path_file'] = f'OwnerY{year}.xlsx'
+        o_readin_dict[year]['path_file'] = f'{year}/OwnerY{year}.xlsx'
         o_readin_dict[year]['excel_params'] = {'header':1}
         o_readin_dict[year]['rename_vars'] = {'owner_state':'state_owner'}
     elif year >= 2011:
-        o_readin_dict[year]['path_file'] = f'OwnershipY{year}.xlsx'
+        o_readin_dict[year]['path_file'] = f'{year}/OwnershipY{year}.xlsx'
         o_readin_dict[year]['excel_params'] = {'header':1}
         o_readin_dict[year]['rename_vars'] = {'owner_state':'state_owner'}
     elif year >= 2010:
-        o_readin_dict[year]['path_file'] = f'OwnerY{year}.xls'
+        o_readin_dict[year]['path_file'] = f'{year}/OwnerY{year}.xls'
         o_readin_dict[year]['excel_params'] = {'header':0}
         o_readin_dict[year]['rename_vars'] = {'owner_state':'state_owner'}
     elif year >= 2009:
-        o_readin_dict[year]['path_file'] = f'OwnerY{str(year)[2:]}.xls'
+        o_readin_dict[year]['path_file'] = f'{year}/OwnerY{str(year)[2:]}.xls'
         o_readin_dict[year]['excel_params'] = {'header':0}
         o_readin_dict[year]['rename_vars'] = {'owner_state':'state_owner'}
     elif year >= 2006:
-        o_readin_dict[year]['path_file'] = f'OwnerY{str(year)[2:]}.xls'
+        o_readin_dict[year]['path_file'] = f'{year}/OwnerY{str(year)[2:]}.xls'
         o_readin_dict[year]['excel_params'] = {'header':0}
         o_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'plntcode':'plant_code', 'plantcode':'plant_code', 'gencode':'generator_id', 'owner_id':'ownership_id'}
 
 
-odf = readin_eia(f'{PATH_EIA}f860', o_readin_dict)
+odf = readin_eia(f'{PATH_EIA}f860/', o_readin_dict)
 odf['utility_id'] = pd.to_numeric(odf.utility_id).astype('Int64')
 odf['plant_code'] = pd.to_numeric(odf.plant_code).astype('Int64')
 odf['ownership_id'] = pd.to_numeric(odf.ownership_id).astype('Int64')

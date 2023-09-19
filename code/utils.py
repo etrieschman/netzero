@@ -12,7 +12,7 @@ PATH_PROCESSED = PATH_DATA + 'processed/'
 def readin_eia(path_folder, readin_dict):
     sdf = pd.DataFrame({})
     for y in tqdm(readin_dict.keys()):
-        df = pd.read_excel(f'{path_folder}/{y}/{readin_dict[y]["path_file"]}', 
+        df = pd.read_excel(f'{path_folder}{readin_dict[y]["path_file"]}', 
                            **readin_dict[y]['excel_params'])
         df.columns = (df.columns.str.lower()
                       .str.replace(' ', '_')
@@ -29,7 +29,7 @@ def readin_eia_gen(path_folder, readin_dict):
     sdf = pd.DataFrame({})
     for y in readin_dict.keys():
         for f in tqdm(readin_dict[y]['files'], postfix=f'Year: {y}'):
-            dfs = pd.read_excel(f'{path_folder}/{y}/{f}', sheet_name=None,
+            dfs = pd.read_excel(f'{path_folder}{f}', sheet_name=None,
                                     **readin_dict[y]['excel_params'])
             if type(dfs) != dict:
                 dfs = {False:dfs}
@@ -42,7 +42,7 @@ def readin_eia_gen(path_folder, readin_dict):
                 df = df[df.columns.intersection(readin_dict[y]['vars_keep'])]
                 df['year'] = y
                 df['sheet'] = k
-                df['gen_category'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+', '', f)
+                df['gen_category'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+|\\', '', f)
                 sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
 
     return sdf
