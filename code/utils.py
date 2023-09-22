@@ -48,11 +48,11 @@ def readin_eia_gen(path_folder, readin_dict):
     return sdf
 
 
-def readin_epa(yr_start, yr_end, key, vars_keep=None, vars_coll=None):
-    files = [f for f in os.listdir(PATH_EPA) if key in f.lower()]
+def readin_epa(yr_start, yr_end, path_folder, vars_keep=None, vars_coll=None):
+    files = [f for f in os.listdir(path_folder)]
     df = pd.DataFrame({})
     for f in tqdm(files):
-        df_in = pd.read_csv(PATH_EPA + f, low_memory=False)
+        df_in = pd.read_csv(path_folder + f, low_memory=False)
         # clean and subset columns
         df_in.columns = (df_in.columns.str.lower()
                          .str.replace(' ', '_').str.replace('/', '_')

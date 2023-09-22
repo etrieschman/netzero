@@ -4,10 +4,11 @@
 import requests
 import json
 import sys
+import pandas as pd
 from datetime import datetime
 from datetime import date
 from tqdm import tqdm
-import os
+import os, io
 
 from credentials import EPA_API_KEY # local user: save credentials.py file with api key
 
@@ -50,7 +51,7 @@ print(set([fileObj['metadata']['dataType'] for fileObj in bulkFiles]))
 
 # %%
 # DOWNLOAD DATA
-def download_files(filesToDownload, parameters):
+def download_files(filesToDownload, filename_prefix, parameters, subset_col=None):
     if len(filesToDownload) > 0:
         # loop through all files and download them
         for fileObj in tqdm(filesToDownload):
@@ -58,15 +59,26 @@ def download_files(filesToDownload, parameters):
             # print('Full path to file on S3: '+url)
             # download and save file
             response = requests.get(url, params=parameters)
+            # subset data
+            # converters = {col:'Float64' for col in numeric_cols}
+            content = pd.read_csv(io.StringIO(response.text), dtype=str)
+            if subset_col is not None:
+                content = content.astype({subset_col:'Float64'})
+                # print(fileObj['s3Path'])
+                # print(content.shape)
+                content = content.loc[content[subset_col] != 0.]
+                # print(content.shape)
+                # content = content.astype({subset_col:'Float64'}).loc[content[subset_col] != 0.]
             # save file to disk in the data folder
-            with open(PATH_EPA + fileObj['filename'], 'wb') as f:
-                f.write(response.content)
+            content.to_csv(filename_prefix + fileObj['filename'])
+            # with open(PATH_EPA + fileObj['filename'], 'wb') as f:
+            #     f.write(content)
     else:
         print('No files to download')
 
 
 # %%
-START_YEAR = 2018
+START_YEAR = 2013
 # DOWNLOAD FACILITY DATA
 # facility data
 facFiles = [fileObj for fileObj in bulkFiles if 
@@ -76,25 +88,42 @@ facFilters = {'minYear': START_YEAR}
 filesToDownload = [fileObj for fileObj in facFiles if 
                    (int(fileObj['metadata']['year']) >= facFilters['minYear'])]
 print('Number of files to download: ' + str(len(filesToDownload)))
-download_files(filesToDownload, epa_params)
+download_files(filesToDownload, PATH_EPA + '/facility/', epa_params)
 
 
 
 # %%
-# DOWNLOAD EMISSIONS DATA
-# facility data
+# DOWNLOAD DAILY EMISSIONS DATA
+START_YEAR, END_YEAR = 2013, 2021
 emFiles = [fileObj for fileObj in bulkFiles if 
             (fileObj['metadata']['dataType']=='Emissions')]
 print('Emission granularity:', 
       set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
 emFiles = [fileObj for fileObj in emFiles if
            (fileObj['metadata']['dataSubType']=='Daily')]
-emFilters = {'minYear': START_YEAR}
-
 filesToDownload = [fileObj for fileObj in emFiles if 
-                   (int(fileObj['metadata']['year']) >= emFilters['minYear'])]
-print('Number of files to download: '+str(len(filesToDownload)))
-download_files(filesToDownload, epa_params)
+                   (('stateCode' in fileObj['metadata']) & 
+                    (int(fileObj['metadata']['year']) >= START_YEAR) & 
+                   (int(fileObj['metadata']['year']) <= END_YEAR))]
+print('Number of files to download: '+ str(len(filesToDownload)))
+download_files(filesToDownload, PATH_EPA + '/emissions/daily/', epa_params,
+               subset_col='Operating Time Count')
 
 
+# %%
+# DOWNLOAD HOURLY EMISSIONS DATA
+START_YEAR, END_YEAR = 2013, 2021
+emFiles = [fileObj for fileObj in bulkFiles if 
+            (fileObj['metadata']['dataType']=='Emissions')]
+print('Emission granularity:', 
+      set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
+emFiles = [fileObj for fileObj in emFiles if
+           (fileObj['metadata']['dataSubType']=='Hourly')]
+filesToDownload = [fileObj for fileObj in emFiles if 
+                   (('stateCode' in fileObj['metadata']) & 
+                    (int(fileObj['metadata']['year']) >= START_YEAR) & 
+                   (int(fileObj['metadata']['year']) <= END_YEAR))]
+print('Number of files to download: '+ str(len(filesToDownload)))
+download_files(filesToDownload, PATH_EPA + '/emissions/hourly/', epa_params,
+               subset_col='Operating Time')
 # %%
