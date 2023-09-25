@@ -6,10 +6,10 @@ import plotly.graph_objects as go
 import itertools
 import os, re
 
-from utils import PATH_PROCESSED, PATH_RESULTS
+from utils import PATH_PROCESSED, PATH_RESULTS, summarize_id_counts_byyear
 
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', 50)
+pd.set_option('display.max_rows', 85)
 
 # %%
 # READIN DATA
@@ -17,7 +17,6 @@ generator = pd.read_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet')
 plant = pd.read_parquet(PATH_PROCESSED + 'eia_f860_plant.parquet')
 utility = pd.read_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet')
 owner = pd.read_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet')
-emissions = pd.read_parquet(PATH_PROCESSED + 'eia_emissions.parquet')
 
 # %%
 # Q: DOES OWNERSHIP ADD UP? No
@@ -195,6 +194,43 @@ m_final = m_cln[[
 m_final.to_parquet(PATH_PROCESSED + 'eia_final.parquet')
 
 # %%
+# SUMMARIZE IDS BY YEAR
+m_final['pid'] = m_final.utility_id.astype(str) + '_' + m_final.plant_code.astype(str)
+m_final['oid'] = m_final.ownership_id
+m_final['gid'] = m_final.pid + '_' + m_final.generator_id
+summarize_id_counts_byyear(m_final, ['oid', 'pid', 'gid'])
+
+# %%
+#  SUMMARIZE GENERATORS BY SECTOR
+m_final.loc[:, 'chp'] = np.where(m_final.sector.isin([3, 5, 7]), True, False)
+m_final.loc[m_final.sector == 1, 'sector_ii'] = 'electric_utility'
+m_final.loc[m_final.sector.isin([2,3]), 'sector_ii'] = 'ipp'
+m_final.loc[m_final.sector.isin([4,5]), 'sector_ii'] = 'commercial'
+m_final.loc[m_final.sector.isin([6,7]), 'sector_ii'] = 'industrial'
+(m_final.loc[m_final.year.isin([2013, 2021]) & (m_final.status_simp == 'operating'), ['year', 'sector_ii', 'chp', 'gid', 'nameplate_capacity_mw']]
+ .drop_duplicates()
+ .groupby(['year', 'sector_ii', 'chp'])[['gid', 'nameplate_capacity_mw']]
+ .agg({'gid':'count', 'nameplate_capacity_mw':'sum'}))
+
+# %%
+# VISUALIZE FACILITY DATA
+import geopandas as gpd
+from shapely.geometry import Point
+m_final['latitude'] = pd.to_numeric(m_final.latitude, errors='coerce')
+m_final['longitude'] = pd.to_numeric(m_final.longitude, errors='coerce')
+m_final_op = (m_final
+        .loc[(m_final.year == 2021) & (m_final.status_simp == 'operating') ,
+             ['plant_code', 'prime_mover', 'generator_id', 'latitude', 'longitude', 'nameplate_capacity_mw']]
+             .drop_duplicates()
+        .groupby(['latitude', 'longitude', 'prime_mover'])
+        .agg({'nameplate_capacity_mw':'count'})
+        .reset_index())
+geometry = [Point(xy) for xy in zip(m_final_op['longitude'], m_final_op['latitude'])]
+m_final_op = gpd.GeoDataFrame(m_final_op, geometry=geometry)
+m_final_op.plot(column='prime_mover', cmap='Paired', alpha=0.25, markersize=3, legend=False)
+plt.show()
+
+# %%
 # MAKE DATASET FOR SANKEY DIAGRAM
 # make year-gen dataset
 m_util = m_final.drop(columns=['ownership_id', 'ownership', 'owner_name', 'city_owner', 'state_owner', 'zip_owner', 'percent_owned']).drop_duplicates()
@@ -256,11 +292,8 @@ fig.write_html(PATH_RESULTS + 'plt_sankey_status.html')
 m_own = m_final.copy()
 m_own['id'] = m_own.plant_code.astype(str) + '_' + m_own.generator_id
 m_own = m_own.groupby(['id', 'year', 'ownership'])['ownership_id'].apply(set).reset_index()
-
-# %%
 base = pd.DataFrame(itertools.product(m_own.id.drop_duplicates().values, m_own.year.drop_duplicates().values), columns=['id', 'year'])
 
-# %%
 s = pd.merge(left=base, right=m_own, on=['id', 'year'], how='left').sort_values(['id', 'year'])
 s['ownership_id_prev'] = s.groupby('id')['ownership_id'].shift(1)
 s['ownership_prev'] = s.groupby('id')['ownership'].shift(1)
@@ -315,7 +348,7 @@ fig = go.Figure(data=[go.Sankey(
       color = link_colors
   ))])
 
-fig.update_layout(title_text='Generator ownership status over time', font_size=8)
+fig.update_layout(title_text='Generator ownership status over time', font_size=10)
 fig.show()
 fig.write_html(PATH_RESULTS + 'plt_sankey_ownership.html')
 # %%

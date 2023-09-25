@@ -7,7 +7,7 @@ from shapely.geometry import Point
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from utils import PATH_EPA, PATH_PROCESSED
+from utils import PATH_EPA, PATH_PROCESSED, summarize_id_counts_byyear
 from utils import readin_epa
 
 YR_START, YR_END = 2013, 2021
@@ -37,6 +37,12 @@ emdf = readin_epa(YR_START, YR_END, PATH_EPA+'/emissions/daily/', vars_coll=vars
 emdf.to_csv(PATH_PROCESSED + 'epa_emissions.csv', index=False)
 emdf.head()
 
+# %% 
+# SUMMARIZE UNIQUE IDENTIFIERS
+# emdf = pd.read_csv(PATH_PROCESSED + 'epa_emissions.csv')
+emdf['pid'] = emdf.facility_id
+emdf['uid'] = emdf.facility_id.astype(str) + '_' + emdf.unit_id.astype(str)
+summarize_id_counts_byyear(emdf, ['pid', 'uid'])
 
 # %%
 # VISUALIZE EMISSIONS DATA

@@ -6,7 +6,7 @@ import os
 
 
 from utils import PATH_EIA, PATH_PROCESSED
-from utils import readin_eia, readin_eia_gen
+from utils import readin_eia, readin_eia_gen, summarize_id_counts_byyear
 
 YR_START, YR_END = 2013, 2021
 
@@ -238,56 +238,28 @@ odf.to_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet', index=False)
 
 
 # %%
-# SUMMARIZE BY COUNTS
-def summarize_id_counts(df, ids):
-    for id in ids:
-        prev = set()
-        counts = {}
-        counts['n'], counts['n_new'], counts['n_drop'] = [], [], []
-        for i, row in df.iterrows():
-            curr = row[id]
-            # Calculate overlap and new IDs
-            counts['n'] += [len(curr)]
-            counts['n_new'] += [len(curr.difference(prev))]
-            counts['n_drop'] += [len(prev.difference(curr))]
-            # Update prev_ids for the next iteration
-            prev = curr
-
-        # Add new columns to the DataFrame
-        for k, v in counts.items():
-            df[f'{id}_{k}'] = v
-        df = df.drop(columns=[id])
-    return df
-
-# %%
 # GENERATE UTILITY SUMMARY
 # utility data
-ludf = (udf.groupby('year')[['utility_id']]
-           .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
-ludf = ludf.rename(columns={'utility_id':'uid'})
+udf = udf.rename(columns={'utility_id':'uid'})
 print('Utility dataset:')
-summarize_id_counts(ludf.copy(), ['uid'])
+summarize_id_counts_byyear(udf.copy(), ['uid'])
 
 # %%
 # GENERATE PLANT SUMMARY
 # plant data
 pdf['pid'] = pdf.utility_id.astype(str) + '.' + pdf.plant_code.astype(str)
-lpdf = (pdf.groupby('year')[['utility_id', 'pid']]
-        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
-lpdf = lpdf.rename(columns={'utility_id':'uid'})
+pdf = pdf.rename(columns={'utility_id':'uid'})
 print('Plant dataset:')
-summarize_id_counts(lpdf.copy(), ['uid', 'pid'])
+summarize_id_counts_byyear(pdf.copy(), ['uid', 'pid'])
 
 # %%
 # GENERATE GENERATOR SUMMARY
 # unit data
 gdf['pid'] = gdf.utility_id.astype(str) + '.' + gdf.plant_code.astype(str)
 gdf['gid'] = gdf.pid + '.' + gdf.generator_id
-lgdf = (gdf.groupby(['year'])[['utility_id', 'pid', 'gid']]
-        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
-lgdf = lgdf.rename(columns={'utility_id':'uid'})
+gdf = gdf.rename(columns={'utility_id':'uid'})
 print('Generator dataset:')
-summarize_id_counts(lgdf.copy(), ['uid', 'pid', 'gid'])
+summarize_id_counts_byyear(gdf.copy(), ['uid', 'pid', 'gid'])
 
 # %%
 # GENERATE OWNER SUMMARY
@@ -295,9 +267,7 @@ summarize_id_counts(lgdf.copy(), ['uid', 'pid', 'gid'])
 odf['pid'] = odf.utility_id.astype(str) + '.' + odf.plant_code.astype(str)
 odf['gid'] = odf.pid + '.' + odf.generator_id
 odf['oid'] = odf.gid + '.' + odf.ownership_id.astype(str)
-lodf = (odf.groupby(['year'])[['utility_id', 'pid', 'gid', 'oid', 'ownership_id']]
-        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
-lodf = lodf.rename(columns={'utility_id':'uid'})
+odf = odf.rename(columns={'utility_id':'uid'})
 print('Ownership dataset:')
-summarize_id_counts(lodf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id'])
+summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id'])
 # %%

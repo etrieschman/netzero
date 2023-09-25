@@ -32,3 +32,5 @@ edf['plant_code'] = pd.to_numeric(edf.plant_code, errors='coerce').astype('Int64
 edf = edf.loc[edf.plant_code.notna() & (edf.plant_code != 99999)]
 edf.to_parquet(PATH_PROCESSED + 'eia_emissions.parquet', index=False)
 # %%
+edf.loc[edf.plant_code == 6002]
+# %%

@@ -70,3 +70,26 @@ def readin_epa(yr_start, yr_end, path_folder, vars_keep=None, vars_coll=None):
             continue        
         df = pd.concat([df_in, df], ignore_index=True, axis=0)
     return df
+
+# SUMMARIZE BY COUNTS
+def summarize_id_counts_byyear(df, ids):
+    ldf = (df.groupby('year')[ids]
+        .agg(lambda x: set(x.drop_duplicates().values)).reset_index())
+    for id in ids:
+        prev = set()
+        counts = {}
+        counts['n'], counts['n_new'], counts['n_drop'] = [], [], []
+        for i, row in ldf.iterrows():
+            curr = row[id]
+            # Calculate overlap and new IDs
+            counts['n'] += [len(curr)]
+            counts['n_new'] += [len(curr.difference(prev))]
+            counts['n_drop'] += [len(prev.difference(curr))]
+            # Update prev_ids for the next iteration
+            prev = curr
+
+        # Add new columns to the DataFrame
+        for k, v in counts.items():
+            ldf[f'{id}_{k}'] = v
+        ldf = ldf.drop(columns=[id])
+    return ldf

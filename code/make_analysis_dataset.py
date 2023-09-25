@@ -1,6 +1,7 @@
 # %%
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from utils import PATH_DATA, PATH_PROCESSED
 
@@ -105,15 +106,29 @@ m_epa_col = m_epa.groupby(vars_group)[vars_col].sum().reset_index()
 m = pd.merge(left=eia, right=m_epa_col, how='outer',
              left_on=eia_on+['year'], right_on=xwalk_eia_on+['year'])
 
-
-
-
 summarize_merge(m, eia_on, xwalk_eia_on, r_hasyear=True)
 
 # %%
-m_epa['count_unique'] = m_epa.groupby(['facility_id'])['eia_plant_id'].transform('nunique')
-m_epa.loc[m_epa.count_unique > 1].sort_values(['facility_id', 'eia_plant_id'])
-# %%
-m_epa.groupby(['facility_id', 'unit_id'])[['camd_generator_id', 'eia_generator_id']].nunique()
+# FIND HIGHEST EMITTING FACILITY AND PLOT DATA
+# find facility
+YEAR = 2021
+epa_top_facility = epa.loc[epa.year==YEAR].groupby(['facility_id'])['co2_mass_short_tons'].sum().sort_values(ascending=False).index[0]
+eia_top_facility = xwalk.loc[xwalk.camd_plant_id == epa_top_facility, 'eia_plant_id'].values[0]
+epa_topfac_state = epa.loc[(epa.year==YEAR) & (epa.facility_id == epa_top_facility), 'state'].values[0].lower()
+# get EPA emissions data
+epa_topfac = pd.read_csv(PATH_DATA + f'raw/epa/emissions/daily/emissions-daily-{YEAR}-{epa_topfac_state}.csv')
+epa_topfac = epa_topfac.loc[epa_topfac['Facility ID'] == epa_top_facility]
+epa_topfac['datetime'] = pd.to_datetime(epa_topfac.Date)
+epa_topfac = epa_topfac.groupby('datetime')['CO2 Mass (short tons)'].sum().reset_index()
+# get EIA emissions data
+eia_topfac = pd.read_parquet(PATH_PROCESSED + 'eia_emissions.parquet')
+eia_topfac = eia_topfac.loc[(eia_topfac.plant_code == eia_top_facility) & (eia_topfac.year == YEAR), 'tons_of_co2_emissions'].sum()
+# get EIA plant details
+eia.loc[(eia.plant_code == eia_top_facility) & (eia.year == YEAR)]
 
+# %%
+
+plt.figure(figsize=(15, 2))
+plt.plot(epa_topfac.datetime, epa_topfac['CO2 Mass (short tons)'])
+plt.title(f'EPA emissions for {YEAR} top-emitting facility\nEPA total={epa_topfac["CO2 Mass (short tons)"].sum():0,}; EIA total={eia_topfac:0,}')
 # %%
