@@ -127,7 +127,6 @@ eia_topfac = eia_topfac.loc[(eia_topfac.plant_code == eia_top_facility) & (eia_t
 eia.loc[(eia.plant_code == eia_top_facility) & (eia.year == YEAR)]
 
 # %%
-
 plt.figure(figsize=(15, 2))
 plt.plot(epa_topfac.datetime, epa_topfac['CO2 Mass (short tons)'])
 plt.title(f'EPA emissions for {YEAR} top-emitting facility\nEPA total={epa_topfac["CO2 Mass (short tons)"].sum():0,}; EIA total={eia_topfac:0,}')
