@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from utils import PATH_DATA, PATH_PROCESSED
 
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', 15)
+pd.set_option('display.max_rows', 115)
 
 # %%
 # IMPORT
@@ -42,14 +42,12 @@ display(xwalk_summ[['camd_plant_id', 'eia_plant_id', 'n_epa_plants_peia']].drop_
 # display(xwalk.loc[xwalk.groupby(['camd_plant_id'])['eia_plant_id'].transform('nunique') > 1, ['camd_plant_id', 'eia_plant_id']].drop_duplicates())
 # eia.loc[eia.plant_code.isin([302, 59002])]
 # epa.loc[epa.facility_id == 302]
-xwalk_summ['n_eia_gen_pepa'] = xwalk.groupby(['camd_plant_id', 'camd_unit_id'])['eia_generator_id'].transform('nunique')
-xwalk_summ['n_epa_unit_peia'] = xwalk.groupby(['eia_plant_id', 'eia_generator_id'])['camd_unit_id'].transform('nunique')
-xwalk_summ[['n_eia_gen_pepa', 'n_epa_unit_peia']].value_counts().reset_index()
-
-# %%
+xwalk_summ['n_eia_gen_per_epa_unit'] = xwalk.groupby(['camd_plant_id', 'camd_unit_id'])['eia_generator_id'].transform('nunique')
+xwalk_summ['n_epa_unit_per_eia_gen'] = xwalk.groupby(['eia_plant_id', 'eia_generator_id'])['camd_unit_id'].transform('nunique')
+xwalk_gensum = xwalk_summ[['n_eia_gen_per_epa_unit', 'n_epa_unit_per_eia_gen']].value_counts().reset_index()
+display(xwalk_gensum.iloc[0:16])
+display(xwalk_gensum.iloc[16:])
 # DECISION: BASED ON THESE FINDINGS, PROPOSE MAPPING EPA TO EIA AT THE FACILITY LEVEL
-xwalk = xwalk['']
-
 
 # %%
 # SUMMARIZE MERGE HELPER FUNCTION
@@ -84,29 +82,33 @@ summarize_merge(m_eia, eia_on, xwalk_eia_on, r_hasyear=False)
 
 # %%
 # UNDERSTAND MERGE EPA ON CROSSWALK
-# DECISION: COLLAPSE TO EPA FACILITY
-epa_col = epa.groupby(['facility_id', 'year'])[['co2_mass_short_tons', 'gross_load_mwh']].sum().reset_index()
+epa_col = epa.groupby(['facility_id', 'unit_id', 'year'])[['co2_mass_short_tons', 'gross_load_mwh']].sum().reset_index()
 epa_on = ['facility_id', 'unit_id']
 xwalk_epa_on = ['camd_plant_id', 'camd_unit_id']
 m_epa = pd.merge(left=epa_col, right=xwalk, how='outer',
               left_on=epa_on, right_on=xwalk_epa_on)
 m_epa['year'] = m_epa.year.astype('Int64')
-print('Merge summary')
 display(summarize_merge(m_epa, epa_on, xwalk_epa_on, r_hasyear=False))
 
+# %%
+# FLAG EIA PLANTS THAT HAVE EPA EMISSIONS DATA
+# first, add flag to EIA if in EPA data (by year)
+epa_flag = m_epa.loc[m_epa.facility_id.notna(), ['facility_id', 'eia_plant_id', 'eia_generator_id', 'year']].drop_duplicates()
+epa_flag.rename(columns={'eia_plant_id':'eia_plant_id_in_epa_xwalk'}, inplace=True)
+print("Count by year of facilities in EPA that aren't in EIA:")
+epa_flag.loc[epa_flag.eia_plant_id_in_epa_xwalk.isna()].groupby('year')['facility_id'].nunique()
+# TODO: Look into these facilities that don't appear in EIA. Understand why
+epa_flag = epa_flag.drop(columns='facility_id').drop_duplicates()
+print('EIA pre-merge shape:', eia.shape)
+eia_epaflag = pd.merge(left=eia, right=epa_flag, how='left', left_on=['plant_code', 'generator_id', 'year'], right_on=['eia_plant_id_in_epa_xwalk', 'eia_generator_id', 'year'])
+print('EIA post-merge shape:', eia_epaflag.shape)
+eia_epaflag['in_epa'] = False
+eia_epaflag.loc[eia_epaflag.eia_plant_id_in_epa_xwalk.notna(), 'in_epa'] = True
+# next, summarize
+# 1. by status
+eia_summ_status = eia_epaflag.groupby(['status_simp', 'in_epa']).agg({'key_gen':'nunique', 'nameplate_capacity_mw':'sum'})
+eia_summ_status
 
-# %% 
-# AGGREGATE EPA TO EIA GENERATOR
-vars_group = ['facility_id', 'unit_id', 'year', 
-              'camd_plant_id', 'eia_plant_id', 'eia_generator_id']
-vars_col = ['sum_of_the_operating_time', 'gross_load_mwh', 'steam_load_1000_lb',
-    'so2_mass_short_tons', 'co2_mass_short_tons', 'nox_mass_short_tons',
-    'heat_input_mmbtu']
-m_epa_col = m_epa.groupby(vars_group)[vars_col].sum().reset_index()
-m = pd.merge(left=eia, right=m_epa_col, how='outer',
-             left_on=eia_on+['year'], right_on=xwalk_eia_on+['year'])
-
-summarize_merge(m, eia_on, xwalk_eia_on, r_hasyear=True)
 
 # %%
 # FIND HIGHEST EMITTING FACILITY AND PLOT DATA
@@ -124,11 +126,10 @@ epa_topfac = epa_topfac.groupby('datetime')['CO2 Mass (short tons)'].sum().reset
 eia_topfac = pd.read_parquet(PATH_PROCESSED + 'eia_emissions.parquet')
 eia_topfac = eia_topfac.loc[(eia_topfac.plant_code == eia_top_facility) & (eia_topfac.year == YEAR), 'tons_of_co2_emissions'].sum()
 # get EIA plant details
-eia.loc[(eia.plant_code == eia_top_facility) & (eia.year == YEAR)]
-
-# %%
+print(f'Highest emitting facility details and emissions (fac={eia_top_facility}, yr={YEAR})')
+display(eia.loc[(eia.plant_code == eia_top_facility) & (eia.year == YEAR)])
 
 plt.figure(figsize=(15, 2))
 plt.plot(epa_topfac.datetime, epa_topfac['CO2 Mass (short tons)'])
 plt.title(f'EPA emissions for {YEAR} top-emitting facility\nEPA total={epa_topfac["CO2 Mass (short tons)"].sum():0,}; EIA total={eia_topfac:0,}')
-# %%
+plt.show()

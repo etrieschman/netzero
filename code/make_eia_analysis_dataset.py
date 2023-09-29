@@ -9,7 +9,7 @@ import os, re
 from utils import PATH_PROCESSED, PATH_RESULTS, summarize_id_counts_byyear
 
 pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', 85)
+pd.set_option('display.max_rows', 120)
 
 # %%
 # READIN DATA
@@ -88,29 +88,6 @@ m_goup = pd.merge(left=m_gou, right=plant, how='inner', on=['utility_id', 'plant
 print('CHECK: merged ID-years\t', len(m_goup))
 
 # %%
-# MERGE EMISSIONS --> (PLANT/UTILITY/GEN/OWNER)
-# emissions['merge_key'] = emissions.plant_code.astype(str) + '_' + emissions.year.astype(str)
-# m_goup['merge_key'] = m_goup.plant_code.astype(str) + '_' + m_goup.year.astype(str)
-# print('plant ID in merge dataset, but not in emissions:')
-# display(m_goup.loc[
-#     ~m_goup.merge_key.isin(emissions.merge_key.drop_duplicates())
-#     & (m_goup.prime_mover.isin(['ST', 'GT', 'IC', 'CA', 'CT', 'CS', 'CC', 'BT']))
-#     & ~(m_goup.status.isin(['CN','IP', 'TS','P','L','T','U','V','OT',
-#                             'SB', 'OA', 'OS', 'RE']))].groupby('year')['utility_id'].count())
-# # FINDING: About 2000 each year. This might actually be that these generators weren't opearating in any year. Need to check f923
-# print('plant ID in emissions dataset, but not in merge')
-# display(emissions.loc[~emissions.merge_key.isin(m_goup.merge_key.drop_duplicates())])
-# # FINDING: inexplicable 2 plants in 2 years. Need to confirm in f923
-# emissions.drop(columns='merge_key', inplace=True)
-# emissions = (
-#     emissions.groupby(['plant_code', 'year'])
-#     [['generation_kwh', 'total_fuel_consumption_mmbtu',
-#     'fuel_consumption_for_electric_generation_mmbtu','tons_of_co2_emissions']]
-#     .sum().reset_index())
-# m_goup.drop(columns='merge_key', inplace=True)
-# print('emission ID-years:\t', len(emissions))
-# m = pd.merge(left=m_goup, right=emissions, how='left', on=['plant_code', 'year'])
-# print('CHECK: merged ID-years:\t', len(m))
 m = m_goup
 
 # %% 
@@ -143,7 +120,7 @@ m_cln.loc[mask_sb, 'status_simp'] = 'standby'
 m_cln.loc[mask_ds, 'status_simp'] = 'discontinued'
 
 # %%
-# OPERATION DATES
+# UPDATE COLUMNS: OPERATION DATES
 vars_month = ['operating_month', 'current_month', 'retirement_month', 'planned_retirement_month']
 vars_year = ['operating_year', 'current_year', 'retirement_year', 'planned_retirement_year']
 for vm in vars_month:
@@ -176,6 +153,26 @@ summ_status_simp = (m_cln.groupby('status_simp', dropna=False)
 display(summ_status)
 display(summ_status_simp)
 
+# %%
+# UPDATE COLUMNS: PRIME MOVER AND ENERGY SOURCE
+m_cln['prime_mover'] = m_cln.prime_mover.str.strip().str.lower()
+print('Generators missing prime mover value:', m_cln.prime_mover.isna().sum())
+print('Generators missing energy source value:', m_cln.energy_source_1.isna().sum())
+display(m_cln.loc[m_cln.energy_source_1.isna(), ].groupby('status')['utility_id'].count())
+# DECISION: NO NEED TO UPDATE THIS. ONLY 6 ROWS MAPPING TO GENERATORS THAT WERE INDEFINITELY DISCONTINUED
+# Create more general categories
+lbl_coal = ['ANT','BIT','LIG','SGC','SUB','WC','RC']
+lbl_ng = ['BFG', 'NG', 'OG']
+lbl_pet = ['DFO','JF','KER','PC','PG','RFO','SGP','WO']
+lbl_ren = ['SUN','WND','GEO','WAT']
+lbl_othfuel = ['AB','MSW','OBS','WDS','OBL','SLW','BLQ','WDL','LFG','OBG']
+m_cln.loc[m_cln.energy_source_1.isin(lbl_coal), 'energy_source_simp'] = 'coal'
+m_cln.loc[m_cln.energy_source_1.isin(lbl_ng), 'energy_source_simp'] = 'natgas'
+m_cln.loc[m_cln.energy_source_1.isin(lbl_pet), 'energy_source_simp'] = 'petrl'
+m_cln.loc[m_cln.energy_source_1.isin(lbl_ren), 'energy_source_simp'] = 'renew'
+m_cln.loc[m_cln.energy_source_1.isin(lbl_othfuel), 'energy_source_simp'] = 'othfuel'
+m_cln.loc[m_cln.energy_source_1 == 'NUC', 'energy_source_simp'] = 'nuclear'
+m_cln[['energy_source_1', 'energy_source_simp']].value_counts(dropna=False)
 
 #%%
 # REORDER COLUMNS

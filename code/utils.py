@@ -42,7 +42,7 @@ def readin_eia_gen(path_folder, readin_dict):
                 df = df[df.columns.intersection(readin_dict[y]['vars_keep'])]
                 df['year'] = y
                 df['sheet'] = k
-                df['gen_category'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+|\\', '', f)
+                df['gen_category'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+|\/', '', f).lower()
                 sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
 
     return sdf

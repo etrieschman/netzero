@@ -182,7 +182,7 @@ display(gdf_summ.groupby(['year', 'gen_category'])['utility_id'].count())
 print('total dups:', gdf.duplicate.sum())
 # DECISION: Drop duplicates When this is the case
 # Take the info from the main, "generator" sheet (and "proposed gen" in 06-08)
-gdf['dup_ingen'] = gdf.gen_category.str.startswith(('Gen', 'PRGen'))
+gdf['dup_ingen'] = gdf.gen_category.str.startswith(('gen', 'prgen'))
 gdf['dup_anyingen'] = gdf.groupby('dup_key')['dup_ingen'].transform('sum')
 gdf['dup_keep'] = True
 gdf.loc[~gdf.dup_ingen & gdf.dup_anyingen, 'dup_keep'] = False
