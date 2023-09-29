@@ -4,19 +4,17 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-
-from utils import PATH_EIA, PATH_PROCESSED
-from utils import readin_eia, readin_eia_gen, summarize_id_counts_byyear
-
-YR_START, YR_END = 2013, 2021
+from utils import PATH_EIA, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR
+from utils_data_eia import readin_eia, readin_eia_gen
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 70)
 
 # %%
 # UTILITY DATA
+# read-in parameters
 vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type']
-u_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
+u_readin_dict={year:{} for year in range(START_YEAR, END_YEAR+1)}
 for year in u_readin_dict.keys():
     u_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
@@ -40,37 +38,29 @@ for year in u_readin_dict.keys():
         u_readin_dict[year]['excel_params'] = {'header':0}
         u_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'utilname':'utility_name', 'city':'city_util', 'state':'state_util', 'zipcode':'zip_util'}
 
+# readin data
 udf = readin_eia(path_folder=f'{PATH_EIA}f860/', readin_dict=u_readin_dict)
-# 2010 is a messy year with repeat rows. drop these
-# udf = udf.loc[~((udf.year == 2010) & udf.duplicated())]
 udf['utility_id'] = pd.to_numeric(udf.utility_id).astype('Int64')
 udf['zip_util'] = pd.to_numeric(udf.zip_util.astype(str).str.strip(), errors='coerce').astype('Int64')
-
-# %%
-# LOOK AT DUPLICATES
+# save intermediate file
+udf.to_parquet(PATH_INTERIM + 'eia_f860_utility.parquet', index=False)
+# drop duplicates (see summarize_f860)
 udf['dup_key'] = udf.utility_id.astype(str) + '_' + udf.year.astype(str)
 udf['duplicate'] = udf.dup_key.isin(udf.loc[udf.dup_key.duplicated(), 'dup_key'].drop_duplicates())
-print('number of dups, by year: ')
-display(udf.loc[udf.duplicate].groupby('year')['utility_id'].count())
-# NOTE: All the issues are in 2010, and it looks like it's because of differences in naming etc.
 udf['num_cols_nan'] = udf.isna().sum(axis=1)
 udf['min_num_cols_nan'] = udf.groupby('dup_key')['num_cols_nan'].transform('min')
-# drop the duplicate row with the most missing info. If both have smae missing, doesn't matter
 udf['dup_keep'] = True
 udf.loc[(udf.num_cols_nan != udf.min_num_cols_nan) & udf.duplicate, 'dup_keep'] = False
 udf_dedup = udf.loc[udf.dup_keep]
-# for remaining, drop duplicate arbitrarily
 udf_dedup = udf_dedup.loc[~udf.dup_key.duplicated()]
 udf_dedup.drop(columns=['num_cols_nan', 'min_num_cols_nan', 'dup_keep'])
-print('number of dups remaining:', udf_dedup.dup_key.duplicated().sum())
-# WRITE TO FILE
-udf_dedup = udf_dedup.astype({'utility_name':str, 'city_util':str, 'state_util':str})
+# save final file
 udf_dedup.to_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet', index=False)
 
 # %%
 # PLANT DATA
 vars_keep = ['utility_id', 'plant_code', 'plant_name', 'state_plant', 'zip_plant', 'latitude', 'longitude', 'naics_primary']
-p_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
+p_readin_dict={year:{} for year in range(START_YEAR, END_YEAR+1)}
 for year in p_readin_dict.keys():
     p_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
@@ -98,12 +88,12 @@ for year in p_readin_dict.keys():
         p_readin_dict[year]['excel_params'] = {'header':0}
         p_readin_dict[year]['rename_vars'] = {'utilcode':'utility_id', 'plntcode':'plant_code', 'plntname':'plant_name', 'state':'state_plant', 'plntzip':'zip_plant', 'zip5':'zip_plant', 'naics':'naics_primary', 'primary_purpose':'naics_primary'}
 
-
 pdf = readin_eia(f'{PATH_EIA}f860/', p_readin_dict)
 pdf['utility_id'] = pd.to_numeric(pdf.utility_id).astype('Int64')
 pdf['plant_code'] = pd.to_numeric(pdf.plant_code).astype('Int64')
 pdf['zip_plant'] = pd.to_numeric(pdf.zip_plant.astype(str).str.strip(), errors='coerce').astype('Int64')
 pdf = pdf.astype({'plant_name':str, 'state_plant':str, 'latitude':str, 'longitude':str})
+pdf.to_parquet(PATH_INTERIM + 'eia_f860_plant.parquet', index=False)
 pdf.to_parquet(PATH_PROCESSED + 'eia_f860_plant.parquet', index=False)
 
 # %%
@@ -116,7 +106,7 @@ vars_keep = ['utility_id', 'plant_code', 'generator_id', 'status', 'ownership', 
              'energy_source_1', 'cofire_energy_source_1', 
              'prime_mover', 'nameplate_capacity_mw'] + vars_date
 
-g_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
+g_readin_dict={year:{} for year in range(START_YEAR, END_YEAR+1)}
 for year in g_readin_dict.keys():
     g_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2016:
@@ -163,6 +153,7 @@ for year in g_readin_dict.keys():
 
 gdf = readin_eia_gen(f'{PATH_EIA}f860/', g_readin_dict)
 # %%
+# UPDATE DATA TYPES AND SAVE INTERMEDIATE
 gdf['utility_id'] = pd.to_numeric(gdf.utility_id, errors='coerce').astype('Int64')
 gdf = gdf.loc[gdf.utility_id.notna()]
 gdf['plant_code'] = pd.to_numeric(gdf.plant_code, errors='coerce').astype('Int64')
@@ -171,33 +162,33 @@ gdf['sector'] = pd.to_numeric(gdf.sector, errors='coerce').astype('Int64')
 gdf['nameplate_capacity_mw'] = pd.to_numeric(gdf.nameplate_capacity_mw, errors='coerce').astype('Float64')
 for var in gdf.columns.intersection(vars_date):
     gdf[var] = pd.to_numeric(gdf[var], errors='coerce').astype('Int64')
+gdf = gdf.astype({'status':str, 'prime_mover':str})
+gdf.to_parquet(PATH_INTERIM + 'eia_f860_generator.parquet', index=False)
 
 # %%
-# LOOK AT DUPLICATES
+# DEDUP GENERATORS
+gdf = pd.read_parquet(PATH_INTERIM + 'eia_f860_generator.parquet')
 gdf['dup_key'] = gdf[['utility_id', 'plant_code', 'generator_id', 'year']].apply(lambda row: '_'.join(row.values.astype(str)), axis=1)
 gdf['duplicate'] = gdf.dup_key.isin(gdf.loc[gdf.dup_key.duplicated(), 'dup_key'].drop_duplicates())
-# NOTE: Duplicates appear across sheets!
-gdf_summ = gdf.loc[gdf.duplicate].sort_values(['utility_id', 'plant_code', 'generator_id', 'year'])
-display(gdf_summ.groupby(['year', 'gen_category'])['utility_id'].count())
 print('total dups:', gdf.duplicate.sum())
-# DECISION: Drop duplicates When this is the case
-# Take the info from the main, "generator" sheet (and "proposed gen" in 06-08)
+# DECISION: Drop duplicates duplicated across sheets, taking info from the main, "generator" sheet (and "proposed gen" in 06-08)
 gdf['dup_ingen'] = gdf.gen_category.str.startswith(('gen', 'prgen'))
 gdf['dup_anyingen'] = gdf.groupby('dup_key')['dup_ingen'].transform('sum')
 gdf['dup_keep'] = True
 gdf.loc[~gdf.dup_ingen & gdf.dup_anyingen, 'dup_keep'] = False
-print('remaining dups:', gdf.loc[gdf.dup_keep, 'dup_key'].duplicated().sum())
 gdf_dedup = gdf.loc[gdf.dup_keep]
+gdf_dedup['dup_key'] = gdf_dedup[['utility_id', 'plant_code', 'generator_id', 'year']].apply(lambda row: '_'.join(row.values.astype(str)), axis=1)
+gdf_dedup['duplicate'] = gdf_dedup.dup_key.isin(gdf_dedup.loc[gdf_dedup.dup_key.duplicated(), 'dup_key'].drop_duplicates())
+print('total dups:', gdf_dedup.duplicate.sum())
 gdf_dedup.drop(columns=['dup_key', 'dup_ingen', 'dup_anyingen', 'dup_keep'], inplace=True)
 # WRITE TO FILE
-gdf_dedup = gdf_dedup.astype({'status':str, 'prime_mover':str})
 gdf_dedup.to_parquet(PATH_PROCESSED + 'eia_f860_generator.parquet', index=False)
 
 # %%
 # OWNER DATA
 vars_keep = ['utility_id', 'plant_code', 'generator_id', 'ownership_id', 'status', 
              'owner_name','city_owner', 'state_owner', 'zip_owner', 'percent_owned']
-o_readin_dict={year:{} for year in range(YR_START, YR_END+1)}
+o_readin_dict={year:{} for year in range(START_YEAR, END_YEAR+1)}
 for year in o_readin_dict.keys():
     o_readin_dict[year]['vars_keep'] = vars_keep
     if year >= 2013:
@@ -233,41 +224,6 @@ odf['ownership_id'] = pd.to_numeric(odf.ownership_id).astype('Int64')
 odf['zip_owner'] = pd.to_numeric(odf.zip_owner.astype(str).str.strip(), errors='coerce').astype('Int64')
 odf['percent_owned'] = pd.to_numeric(odf.percent_owned.astype(str).str.strip(), errors='coerce').astype('Float64').round(3)
 odf = odf.astype({'generator_id':str, 'status':str, 'owner_name':str, 'state_owner':str})
+odf.to_parquet(PATH_INTERIM + 'eia_f860_ownership.parquet', index=False)
 odf.to_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet', index=False)
 
-
-
-# %%
-# GENERATE UTILITY SUMMARY
-# utility data
-udf = udf.rename(columns={'utility_id':'uid'})
-print('Utility dataset:')
-summarize_id_counts_byyear(udf.copy(), ['uid'])
-
-# %%
-# GENERATE PLANT SUMMARY
-# plant data
-pdf['pid'] = pdf.utility_id.astype(str) + '.' + pdf.plant_code.astype(str)
-pdf = pdf.rename(columns={'utility_id':'uid'})
-print('Plant dataset:')
-summarize_id_counts_byyear(pdf.copy(), ['uid', 'pid'])
-
-# %%
-# GENERATE GENERATOR SUMMARY
-# unit data
-gdf['pid'] = gdf.utility_id.astype(str) + '.' + gdf.plant_code.astype(str)
-gdf['gid'] = gdf.pid + '.' + gdf.generator_id
-gdf = gdf.rename(columns={'utility_id':'uid'})
-print('Generator dataset:')
-summarize_id_counts_byyear(gdf.copy(), ['uid', 'pid', 'gid'])
-
-# %%
-# GENERATE OWNER SUMMARY
-# unit data
-odf['pid'] = odf.utility_id.astype(str) + '.' + odf.plant_code.astype(str)
-odf['gid'] = odf.pid + '.' + odf.generator_id
-odf['oid'] = odf.gid + '.' + odf.ownership_id.astype(str)
-odf = odf.rename(columns={'utility_id':'uid'})
-print('Ownership dataset:')
-summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id'])
-# %%

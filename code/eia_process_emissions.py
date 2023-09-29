@@ -4,10 +4,8 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-from utils import PATH_EIA, PATH_PROCESSED
-from utils import readin_eia
-
-YR_START, YR_END = 2013, 2021
+from utils import PATH_EIA, PATH_PROCESSED, START_YEAR, END_YEAR
+from utils_data_eia import readin_eia
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 70)
@@ -19,7 +17,7 @@ vars_keep = ['plant_code', 'prime_mover', 'fuel_code', 'state', 'sector',
     'fuel_consumption_for_electric_generation_mmbtu', 'tons_of_co2_emissions',
     'nerc_region', 'balancing_authority_code',
     'eia_balancing_authority_region', 'year']
-readin_dict={year:{} for year in range(YR_START, YR_END+1)}
+readin_dict={year:{} for year in range(START_YEAR, END_YEAR+1)}
 for year in readin_dict.keys():
     readin_dict[year]['vars_keep'] = vars_keep
     readin_dict[year]['path_file'] = f'emissions{year}.xlsx'

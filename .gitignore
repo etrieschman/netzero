@@ -6,5 +6,6 @@ code/credentials.py
 # virtual environment
 venv/
 # data files
+data/interim/*
 data/raw/*
 data/processed/*

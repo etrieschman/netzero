@@ -3,16 +3,15 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from utils import PATH_EIA, PATH_PROCESSED
+from utils import PATH_EIA, PATH_PROCESSED, START_YEAR, END_YEAR
 from utils import readin_eia
-YR_START, YR_END = 2018, 2021
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 25)
 
 # %%
 # SUMMARIZE DATA AVAILABILITY
-frame = readin_eia(YR_START, YR_END, f'{PATH_EIA}f861', 'frame_')
+frame = readin_eia(START_YEAR, END_YEAR, f'{PATH_EIA}f861', 'frame_')
 frame = frame.drop(columns='data_year')
 vars_id = ['year', 'utility_number', 'utility_name', 'ownership_code',
            'ownership']
