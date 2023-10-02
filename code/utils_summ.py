@@ -60,8 +60,10 @@ def summarize_plant_inepa(df, group):
             .reset_index())
     summ.rename(columns={group:'value', 'not_renewable':'pct_gens_not_renewable', 'gen_age_yrs':'mean_gen_age_yrs', 
                          'plant_code':'plants', 'key_gen':'generators'}, inplace=True)
+    summ['category'] = group
     if group is None:
         summ['value'] = 'total'
+        summ['category'] = 'total'    
     return summ
 
 
@@ -74,6 +76,8 @@ def summarize_gen_inepa(df, group):
                 .agg({'plant_code':'nunique', 'key_gen':['nunique'], 'nameplate_capacity_mw':['sum', 'mean', 'std'], 'gen_age_yrs':['mean', 'std']})
                 .reset_index())
     summ.rename(columns={group:'value', 'key_gen':'generators', 'plant_code':'plants'}, inplace=True)
+    summ['category'] = group
     if group is None:
         summ['value'] = 'total'
+        summ['category'] = 'total' 
     return summ

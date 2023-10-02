@@ -97,13 +97,14 @@ m_epa_eia_col['gen_age_yrs'] = (dt.datetime.today() - m_epa_eia_col.dt_operation
 # %%
 # 2. TODO: drop relevant statuses (e.g., discontinued)
 # FINDING: LOOKS LIKE STATUS COLUMN NEEDS TO BE CLEANED BETTER
-display(m_epa_eia_col.groupby(['status', 'gen_in_epa', 'eia_epa_merge_type'])['key_gen'].nunique())
+display(m_epa_eia_col.groupby(['status_simp', 'gen_in_epa', 'eia_epa_merge_type'])['key_gen'].nunique())
 
 # %%
 # 3. Summarize at the plant level
-# drop plants that have no fossil fuels
+# drop plants that have no fossil fuels and all plants not operating or standby
 print(m_epa_eia_col.groupby(['plant_has_any_ff', 'plant_in_epa'])['plant_code'].nunique())
-eia_col_plant = m_epa_eia_col.loc[m_epa_eia_col.plant_has_any_ff]
+eia_col_plant = m_epa_eia_col.loc[m_epa_eia_col.plant_has_any_ff & 
+                                  m_epa_eia_col.status_simp.isin(['operating', 'standby'])]
 # summarize
 plant_summ = pd.DataFrame([])
 groups = [None, 'entity_type']
@@ -111,12 +112,15 @@ for g in groups:
     plant_summ = pd.concat([summarize_plant_inepa(eia_col_plant, g), plant_summ])
 plant_summ
 
+plant_summ.loc[plant_summ.value == 'total'].round(2)
+
 
 # %%
 # 4. SUMMARIZE AT THE GENERATOR LEVEL
 # drop nonrenewables
 print('Dropping nonrenewable generators:\n', m_epa_eia_col.groupby('not_renewable')['key_gen'].nunique())
-eia_col_gen = m_epa_eia_col.loc[m_epa_eia_col.not_renewable]
+eia_col_gen = m_epa_eia_col.loc[m_epa_eia_col.not_renewable & 
+                                  m_epa_eia_col.status_simp.isin(['operating', 'standby'])]
 # summarize
 gen_summ = pd.DataFrame([])
 groups = [None, 'entity_type']
@@ -124,16 +128,23 @@ for g in groups:
     gen_summ = pd.concat([summarize_gen_inepa(eia_col_gen,g), gen_summ])
 gen_summ
 
+gen_summ.loc[gen_summ.value == 'total'].round(1)
+
+
 # %%
 # try plotting this:
 import seaborn as sns
-df = gen_summ.copy()
+df, in_epa_lbl = plant_summ, 'plant_in_epa'
+# df, in_epa_lbl = gen_summ, 'gen_in_epa'
+df = df.loc[gen_summ.value == 'total',].drop(columns='category')
 df.iloc[:, 3:] = df.iloc[:, 3:].apply(lambda x: x.round(3).astype(np.float64))
 
 col_val = df.columns[3:]
 # Create subplots
-for col in col_val:
-    sns.relplot(kind='line', x=df.year, y=df[col], hue=df['gen_in_epa'], col=df.value, col_wrap=3)
+plt.figure(figsize=(10, 10), layout='tight')
+for i, col in enumerate(col_val):
+    ax = plt.subplot(3, 3, i+1)
+    sns.lineplot(data=df, x='year', y=col, hue=in_epa_lbl, ax=ax)
 
 
 # %%
