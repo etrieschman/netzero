@@ -9,8 +9,4 @@ venv/
 data/interim/*
 data/raw/*
 data/processed/*
-
-# PUDL
-data_pudl/data/*
-data_pudl/parquet/*
-data_pudl/sqlite/*
+data/pudl/*
