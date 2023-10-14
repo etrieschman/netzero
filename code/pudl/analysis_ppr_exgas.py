@@ -55,8 +55,8 @@ gens = pd.merge(left=gen_yrs, right=gen_ent, on=['plant_id_eia', 'generator_id']
 assert len(gen_yrs) == len(gens)
 # get gas generators
 # gens = gens.loc[(gens.operational_status == 'existing')] # existing
-gens['is_gas'] = ((gens.fuel_type_code_pudl == 'gas') & 
-                  gens.prime_mover_code.isin(['CA', 'CC', 'CS', 'CT', 'GT', 'IC', 'ST']))
+gens['is_gas'] = ((gens.fuel_type_code_pudl == 'gas')) # & 
+                #   gens.prime_mover_code.isin(['CA', 'CC', 'CS', 'CT', 'GT', 'IC', 'ST']))
 # gens['is_gas'] = gens.fuel_type_code_pudl == 'gas'
 # gens['is_gas'] = gens.energy_source_code_1 == 'NG'
 gens_gas = gens.loc[gens.is_gas]
@@ -79,28 +79,13 @@ pwr_gen['month'] = pd.to_datetime(pwr_gen.report_date).dt.month
 # PLANT-LEVEL DATA: NOTE: `pwr_plant` is unique on plantID, year, energy source, and prime mover
 pwr_plant = get_sqltable('generation_fuel_eia923', f"report_date >= '{YR_START}-01-01'")
 pwr_plant['month'] = pd.to_datetime(pwr_gen.report_date).dt.month
-pwr_plant['heatrate_mmbtu_pkwh'] = pwr_plant.fuel_consumed_for_electricity_mmbtu / (1000 * pwr_plant.net_generation_mwh)
-pwr_plant.loc[pwr_plant.heatrate_mmbtu_pkwh == np.inf, 'heatrate_mmbtu_pkwh'] = np.nan
-
-
 
 
 # %%
 # MERGE ANNUAL GENERATION STATS ONTO GENERATOR INFO
-# first, calculate heatrates
-pwr_plant_ann = pwr_plant.groupby(['plant_id_eia', 'year', 'energy_source_code', 'fuel_type_code_pudl', 'prime_mover_code'])[['fuel_consumed_for_electricity_mmbtu', 'net_generation_mwh']].sum().reset_index()
-pwr_plant_ann['heatrate_mmbtu_pkwh'] = pwr_plant_ann.fuel_consumed_for_electricity_mmbtu / (1000 * pwr_plant.net_generation_mwh)
-pwr_plant_ann.loc[pwr_plant_ann.heatrate_mmbtu_pkwh == np.inf, 'heatrate_mmbtu_pkwh'] = np.nan
-pwr_plant_ann.drop(columns=['fuel_consumed_for_electricity_mmbtu', 'net_generation_mwh'], inplace=True)
-# pwr_plant_ann = pwr_plant.groupby(['plant_id_eia', 'year', 'energy_source_code', 'fuel_type_code_pudl', 'prime_mover_code'])[['heatrate_mmbtu_pkwh']].mean().reset_index()
 pwr_gen_ann = pwr_gen.groupby(['plant_id_eia', 'generator_id', 'year']).agg({'net_generation_mwh':'sum'})
 print('generators at gasplant:\t', len(gens_at_gasplant))
 gens_at_gasplant_m = pd.merge(left=gens_at_gasplant, right=pwr_gen_ann, how='left', on=['plant_id_eia', 'generator_id', 'year'])
-print('after merge:\t', len(gens_at_gasplant_m))
-gens_at_gasplant_m = pd.merge(left=gens_at_gasplant_m, how='left', 
-                              right=pwr_plant_ann,
-                              left_on=['plant_id_eia', 'year', 'energy_source_code_1', 'fuel_type_code_pudl', 'prime_mover_code'],
-                              right_on=['plant_id_eia', 'year', 'energy_source_code', 'fuel_type_code_pudl', 'prime_mover_code'])
 print('after merge:\t', len(gens_at_gasplant_m))
 
 # %%
@@ -111,34 +96,59 @@ print('merge rows:\t', len(m))
 # assert len(m) == len(gens_at_gasplant)
 
 # %%
-# GET GENERATOR-LEVEL SUMMARY
+# GET GENERATOR-LEVEL SUMMARY (to compare to EIA)
 # make additional columns
 bucket_cap = {0:'0-24', 24:'25-49', 49:'50-99', 99:'100-149', 149:'150-249', 
               249:'250-499', 499:'500-749', 749:'750-999', 999:'1000-1500', 1500:'1500+'}
 m['capacity_mw_bucket'] = pd.cut(m.capacity_mw, bins=list(bucket_cap.keys()), 
                                  labels=list(bucket_cap.values())[:-1], right=True, include_lowest=True)
 m['age'] = (pd.to_datetime('today') - pd.to_datetime(m.operating_date)).dt.days // 365
-m['capacity_factor'] = m.net_generation_mwh / (m.capacity_mw*365*24)
+m['capacity_factor'] = (m.net_generation_mwh / (m.capacity_mw*365*24)).clip(0, 1)
+m.loc[m.capacity_factor.isna(), 'capacity_factor'] = 0.0
 m['total'] = 'total'
-m.loc[m.heatrate_mmbtu_pkwh == 0, 'heatrate_mmbtu_pkwh'] = np.nan
 # subset dataset
-m_sub = m.loc[(m.year == 2021) & (m.is_gas) & (m.operational_status == 'existing')]
+m_sub = m.loc[(m.year == 2021) & (m.is_gas)]
 # sumarize dataset
 summ_dict = {'generator_id':['count'], 
                   'age':['mean'],
                   'summer_capacity_mw':['mean', 'sum'],
-                  'capacity_factor':['mean'],
-                  'heatrate_mmbtu_pkwh':['mean']}
+                  'capacity_factor':['mean']}
 m_summ = m_sub.groupby(['capacity_mw_bucket']).agg(summ_dict)
-for col in [('generator_id', 'count'), ('summer_capacity_mw', 'sum')]:
-    m_summ[(col[0], 'pct_total')] = m_summ[col] / m_summ[col].sum()
-
 m_summ = pd.concat([m_summ, m_sub.groupby('total').agg(summ_dict)], axis=0)
+for col in [('generator_id', 'count'), ('summer_capacity_mw', 'sum')]:
+    m_summ[(col[0], 'pct_total')] = m_summ[col] / m_summ.loc['total', col].sum()
+
 m_summ.round(3)
 
 # %%
-gens.groupby(['energy_source_code_1', 'fuel_type_code_pudl'], dropna=False)['generator_id'].count()
+# GET GENERATOR VALUE BY CAPACITY FACTOR AND SIZE
+bucket_cap = np.arange(0, 1600, 100)
+bucket_cap_labs = [
+    str(round(bot)) + '-' + str(round(top-1)) for bot, top in 
+    zip(bucket_cap[:-1], bucket_cap[1:])]
+bucket_capfac = np.arange(0, 1.1, 0.1)
+bucket_capfac_labs = [
+    str(round(bot, 3)) + '-' + str(round(top-0.01, 2)) for bot, top in 
+    zip(bucket_capfac[:-1], bucket_capfac[1:])]
+m_sub['capacity_mw_bucket'] = pd.cut(
+    m_sub.capacity_mw, bins=bucket_cap, labels=bucket_cap_labs, 
+    right=True, include_lowest=True)
+m_sub['capfac_bucket'] = pd.cut(
+    m_sub.capacity_factor, bins=bucket_capfac, labels=bucket_capfac_labs, 
+    right=True, include_lowest=True)
 
+# summarize raw
+m_summ = m_sub.groupby(['capacity_mw_bucket', 'capfac_bucket']).agg({'generator_id':'count', 'summer_capacity_mw':'sum', 'net_generation_mwh':'sum'}).reset_index()
+var = 'generator_id'
+m_summ = m_summ.pivot(index='capacity_mw_bucket', columns='capfac_bucket', values=var)
+m_summ.sort_index(ascending=False, inplace=True)
+m_summ = m_summ[m_summ.columns.sort_values(ascending=False).values]
+# summarize cummulative
+m_summ_cumm = m_summ.cumsum()
+m_summ_cumm = m_summ_cumm.cumsum(axis=1)
+m_summ_cumm_pct = m_summ_cumm / m_summ_cumm.iloc[-1, -1]
+display(m_summ.round(3))
+display(m_summ_cumm_pct.round(3))
 
 # %%
 # PLANT-LEVEL SUMMARY

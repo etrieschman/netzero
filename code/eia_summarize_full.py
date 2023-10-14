@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import itertools
 
 from utils import PATH_PROCESSED, PATH_RESULTS
-from utils_summ import summarize_id_counts_byyear
+from netzero.code.transform.utils_summ import summarize_id_counts_byyear
 
 # %%
 m_final = pd.read_parquet(PATH_PROCESSED + 'eia_final.parquet')

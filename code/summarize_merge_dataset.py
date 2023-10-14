@@ -13,12 +13,31 @@ pd.set_option('display.max_rows', 50)
 # %%
 # IMPORT
 eia_own = pd.read_parquet(PATH_PROCESSED + 'eia_final.parquet')
+eia_pwr = pd.read_parquet(PATH_PROCESSED + 'eia_f923_ops.parquet')
 epa = pd.read_csv(PATH_PROCESSED + 'epa_emissions.csv')
 xwalk = pd.read_csv(PATH_DATA + 'epa_eia_crosswalk.csv')
 eia_own['key_gen'] = eia_own.plant_code.astype(str) + '_' + eia_own.generator_id
 eia_own['key_own'] = eia_own.key_gen + '_' + eia_own.ownership_id.astype(str)
 epa['key_unit'] = epa.facility_id.astype(str) + '_' + epa.unit_id.astype(str)
-eia = eia_own[[col for col in eia_own.columns if 'own' not in col]].drop_duplicates()
+eia = eia_own[[col for col in eia_own.columns if ('own' not in col) & (col != 'cofire_energy_source_1')]].drop_duplicates()
+
+# %%
+# TEMP: MERGE POWER AND SUMMARIZE
+eia_pwr_ann = eia_pwr.groupby(['year', 'operator_id', 'plant_id', 'generator_id'])['value'].sum()
+temp = pd.merge(left=eia, right=eia_pwr_ann, how='left', 
+                left_on=['year', 'utility_id', 'plant_code', 'generator_id'],
+                right_on=['year', 'operator_id', 'plant_id', 'generator_id'])
+print(len(eia), len(eia_pwr_ann), len(temp))
+
+(temp
+ .loc[(temp.energy_source_1 == 'NG') & temp.status_simp.isin(['operating', 'standby'])]
+ .groupby(['year'])
+ .agg({'utility_id':'count', 
+       'nameplate_capacity_mw':['mean', 'sum'],
+       'value':['mean', 'sum']})
+)
+
+
 
 # %%
 # CLEAN CROSSWALK

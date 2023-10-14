@@ -1,6 +1,6 @@
 # logs
 *__pycache__*
-code/credentials.py
+code/extract/credentials.py
 *.DS_Store
 
 # virtual environment
