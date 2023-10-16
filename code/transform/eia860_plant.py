@@ -6,7 +6,7 @@ import os
 
 from utils_transform import (
     PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
-from utils_eia import readin_eia_years
+from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
 # %%
