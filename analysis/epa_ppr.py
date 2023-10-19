@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', 70)
 
-PATH_DATA = '../data/epa_ppr/'
+PATH_DATA = '../data/raw/ipm/'
+PATH_RESULTS = '../results/epa_ppr/'
 scen_base = 'Post-IRA 2022 Reference Case'
 scen_base_updated = 'Updated Baseline'
 scen_prop = 'Proposal'
@@ -88,15 +90,27 @@ dfpuc = clean_ipm_gendata(dfpu.copy())
 
 # %%
 # ANALYSIS DATASETS
-dfs_all = pd.concat([dfbuc, dfpc, dfpuc], axis=0)
-dfs = dfs_all.loc[~dfs_all.in_canada & (dfs_all.fuel_type.notna())]
+dfs_all = pd.concat([dfbuc, dfpc, dfpuc], axis=0).reset_index()
+dfs_all = dfs_all.loc[dfs_all.fuel_type.notna() & dfs_all.capacity_reporting_type.notna()]
+dfs = dfs_all.loc[~dfs_all.in_canada]
 dfs_gas = dfs.loc[dfs.fuel_cat == 'natural_gas']
-dfs_canada = dfs_all.loc[dfs_all.in_canada & (dfs_all.fuel_type.notna())]
+dfs_canada = dfs_all.loc[dfs_all.in_canada]
 dfs_canada_gas = dfs_canada.loc[dfs_canada.fuel_cat == 'natural_gas']
 
 # %%
 # MAKE SUMMARY TABLE
-def make_table_summs(dfs, group, agg):
+def make_pctchg_table(sdf, groups, agg, varbase, valbase):
+    sdf_pct = sdf.copy()
+    for k in agg.keys():
+        baseline_mask = sdf_pct[varbase] == valbase
+        sdf_pct['baseline'] = np.nan
+        sdf_pct.loc[baseline_mask, 'baseline'] = sdf_pct.loc[baseline_mask, k]
+        sdf_pct['baseline'] = sdf_pct.groupby(groups)['baseline'].transform('max')
+        sdf_pct[k] = sdf_pct[k] / sdf_pct.baseline - 1
+        sdf_pct.drop(columns='baseline', inplace=True)
+    return sdf_pct
+
+def make_table_summs(dfs, group, agg, outfn=None):
     # summary table
     dfs_total = dfs.copy()
     dfs_total[group] = 'total'
@@ -107,28 +121,30 @@ def make_table_summs(dfs, group, agg):
         .reset_index()
         )
     # get results as a percent of baseline
-    s_pct = s.copy()
-    for k in agg.keys():
-        baseline_mask = s_pct.scenario == 'updated_baseline'
-        s_pct['baseline'] = np.ones(len(baseline_mask))*-99
-        s_pct.loc[baseline_mask, 'baseline'] = s_pct.loc[baseline_mask, k]
-        s_pct['baseline'] = s_pct.groupby(['year', group])['baseline'].transform('max')
-        s_pct[k] = s_pct[k] / s_pct.baseline - 1
-        s_pct.drop(columns='baseline', inplace=True)
+    spct_scen = make_pctchg_table(s, [group, 'year'], agg, 'scenario', 'updated_baseline')
+    spct_scen = spct_scen.pivot(index=[group, 'year'], columns='scenario')
+    spct_scen.drop(columns=[col for col in spct_scen.columns if 'updated_baseline' in col], inplace=True)
+    # get results as a percent of 2028
+    spct_yr = make_pctchg_table(s, [group, 'scenario'], agg, 'year', 2028)
+    spct_yr = spct_yr.pivot(index=[group, 'year'], columns='scenario')
     # pivot
     s = s.pivot(index=[group, 'year'], columns='scenario')
-    s_pct = s_pct.pivot(index=[group, 'year'], columns='scenario')
-    return s, s_pct
+    if outfn is not None:
+        s.to_csv(outfn+'.csv')
+        spct_scen.to_csv(outfn + '_pctbase.csv')
+        spct_yr.to_csv(outfn + '_pct2028.csv')
+    return {'value':s, 'pct2028':spct_yr, 'pctbase':spct_scen}
 
+# %%
 # SUMMARIZE
 agg = {
-    'dispatchable_capacity_gw':'sum',
-    'capacity_factor':'mean',
+    # 'dispatchable_capacity_gw':'sum',
+    'co2_emissions_total_million_metric_tons':'sum',
     'generation_total_gwh':'sum',
-    'co2_emissions_total_million_metric_tons':'sum'
+    'capacity_factor':'mean',
     }
-s, s_pct = make_table_summs(dfs, 'fuel_cat', agg)
-sgas, sgas_pct = make_table_summs(dfs_gas, 'capacity_mw_bucket', agg)
+s = make_table_summs(dfs, 'fuel_cat', agg, PATH_RESULTS + 'df_fuelcat')
+sgas = make_table_summs(dfs_gas, 'capacity_mw_bucket', agg, PATH_RESULTS + 'df_gascap')
 
 
 
@@ -146,20 +162,24 @@ def plot_summ(dfs:pd.DataFrame, groupcol:str,
     plt.show()
 
 # plot fuel category
-logscales = [True, False, True, True]
+logscales = [False, True, False]
 for (agg_var, agg_fn), logscale in zip(agg.items(), logscales):
     plot_summ(dfs=dfs, groupcol='fuel_cat', 
               agg_var=agg_var, agg_fn=agg_fn, fmt_scenario='style', logscale=logscale)
     
 
 # plot natgas capacity
-logscales = [True, False, True, True]
+logscales = [False, True, False]
 for (agg_var, agg_fn), logscale in zip(agg.items(), logscales):
     plot_summ(dfs=dfs_gas, groupcol='capacity_mw_bucket', 
               agg_var=agg_var, agg_fn=agg_fn, fmt_scenario='style', logscale=logscale)
     
 # %%
 # CANADA ANALYSIS
+scan = make_table_summs(dfs_canada, 'fuel_cat', agg)
+scangas = make_table_summs(dfs_canada_gas, 'capacity_mw_bucket', agg)
+
+# %%
 logscales = [True, False, True, True]
 for (agg_var, agg_fn), logscale in zip(agg.items(), logscales):
     plot_summ(dfs=dfs_canada, groupcol='fuel_cat', 
@@ -170,6 +190,4 @@ for (agg_var, agg_fn), logscale in zip(agg.items(), logscales):
     plot_summ(dfs=dfs_canada_gas, groupcol='capacity_mw_bucket', 
               agg_var=agg_var, agg_fn=agg_fn, fmt_scenario='style', logscale=logscale)
 
-
 # %%
-# TODO: separate study of what happens to canadian generators
