@@ -14,7 +14,7 @@ from utils_summ import summarize_id_counts_byyear
 readin_dict = {}
 readin_dict[END_YEAR] = {
     'files': [f'{END_YEAR}/1___Utility_Y{END_YEAR}.xlsx'],
-    'excel_params':{'header':1},
+    'excel_params':{'header':1, 'sheet_name':None},
     'rename_vars':{'city':'city_util', 'state':'state_util', 'zip':'zip_util'}
 }
 # cut corner: 2013+ is all the same
@@ -24,37 +24,37 @@ for yr in range(2013, END_YEAR+1):
 
 readin_dict[2012] = {
     'files': [f'{2012}/UtilityY{2012}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars': {'city':'city_util', 'state':'state_util', 'zip5':'zip_util'}
 }
 readin_dict[2011] = {
     'files': [f'{2011}/UtilityY{2011}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars': {'city':'city_util', 'state':'state_util', 'zip5':'zip_util'}
 }
 readin_dict[2010] = {
         'files': [f'{2010}/UtilityY{2010}.xls'],
-        'excel_params':{'header':0},
+        'excel_params':{'header':0, 'sheet_name':None},
         'rename_vars': {'utility_city':'city_util', 'utility_state':'state_util', 'utility_zip5':'zip_util'}
 }
 readin_dict[2009] = {
         'files': [f'{2009}/UtilityY{str(2009)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars': {'utility_city':'city_util', 'utility_state':'state_util', 'utility_zip5':'zip_util'}
 }
 readin_dict[2008] = {
         'files': [f'{2008}/UtilY{str(2008)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars': {'utilcode':'utility_id', 'utilname':'utility_name', 'city':'city_util', 'state':'state_util', 'zipcode':'zip_util'}
 }
 readin_dict[2007] = {
         'files': [f'{2007}/UtilY{str(2007)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars': {'utilcode':'utility_id', 'utilname':'utility_name', 'city':'city_util', 'state':'state_util', 'zipcode':'zip_util'}
 }
 readin_dict[2006] = {
         'files': [f'{2006}/UtilY{str(2006)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars': {'utilcode':'utility_id', 'utilname':'utility_name', 'city':'city_util', 'state':'state_util', 'zipcode':'zip_util'}
 }
 

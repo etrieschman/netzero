@@ -14,7 +14,7 @@ from utils_summ import summarize_id_counts_byyear
 readin_dict = {}
 readin_dict[END_YEAR] = {
     'files': [f'{END_YEAR}/4___Owner_Y{END_YEAR}.xlsx'],
-    'excel_params':{'header':1},
+    'excel_params':{'header':1, 'sheet_name':None},
     'rename_vars':{'city_owner':'owner_city', 'owner_state':'state_owner', 'owner_zip':'zip_owner'}
 }
 # cut corner: 2013+ is all the same
@@ -24,37 +24,37 @@ for yr in range(2013, END_YEAR+1):
 
 readin_dict[2012] = {
     'files':    [f'{2012}/OwnerY{2012}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'owner_state':'state_owner'}
 }
 readin_dict[2011] = {
     'files':    [f'{2011}/OwnershipY{2011}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'owner_state':'state_owner'}
 }
 readin_dict[2010] = {
         'files':    [f'{2010}/OwnerY{2010}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'owner_state':'state_owner'}
 }
 readin_dict[2009] = {
         'files':    [f'{2009}/OwnerY{str(2009)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'owner_state':'state_owner'}
 }
 readin_dict[2008] = {
         'files':    [f'{2008}/OwnerY{str(2008)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plantcode':'plant_code', 'gencode':'generator_id', 'owner_id':'ownership_id'}
 }
 readin_dict[2007] = {
         'files':    [f'{2007}/OwnerY{str(2007)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plantcode':'plant_code', 'gencode':'generator_id', 'owner_id':'ownership_id'}
 }
 readin_dict[2006] = {
         'files':    [f'{2006}/OwnerY{str(2006)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plantcode':'plant_code', 'gencode':'generator_id', 'owner_id':'ownership_id'}
 }
 

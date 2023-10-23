@@ -7,7 +7,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-START_YEAR = 2018
+START_YEAR = 2006
 PATH_EIA = '../../data/raw/eia/'
 
 # %%
@@ -29,7 +29,7 @@ def download_eia_zip(url, path_save):
     # extracting the zip file contents
     zip = zipfile.ZipFile(BytesIO(req.content))
     files = zip.namelist()
-    downfiles = [f for f in files if f.endswith(('.xls','.xlsx'))]
+    downfiles = [f for f in files if f.lower().endswith(('.xls','.xlsx'))]
     path = f'{path_save}' if downfiles[0].startswith(f'{year}/') else f'{path_save}{year}/'
     zip.extractall(path, members=downfiles)
 

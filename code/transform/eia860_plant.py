@@ -14,7 +14,7 @@ from utils_summ import summarize_id_counts_byyear
 readin_dict = {}
 readin_dict[END_YEAR] = {
     'files':    [f'{END_YEAR}/2___Plant_Y{END_YEAR}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'state':'state_plant', 'zip':'zip_plant', 'primary_purpose_naics_code':'naics_primary'}
 }
 # cut corner: 2013+ is all the same
@@ -24,37 +24,37 @@ for yr in range(2013, END_YEAR+1):
 
 readin_dict[2012] = {
     'files':    [f'{2012}/PlantY{2012}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'state':'state_plant', 'zip':'zip_plant', 'primary_purpose_naics_code':'naics_primary'}
 }
 readin_dict[2011] = {
     'files':    [f'{2011}/Plant.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'}
 }
 readin_dict[2010] = {
         'files':    [f'{2010}/PlantY{2010}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'},
 }
 readin_dict[2009] = {
         'files':    [f'{2009}/PlantY{str(2009)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'state':'state_plant', 'zip5':'zip_plant', 'primary_purpose':'naics_primary'}
 }
 readin_dict[2008] = {
         'files':    [f'{2008}/PlantY{str(2008)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plntname':'plant_name', 'state':'state_plant', 'plntzip':'zip_plant', 'zip5':'zip_plant', 'naics':'naics_primary', 'primary_purpose':'naics_primary'}
 }
 readin_dict[2007] = {
         'files':    [f'{2007}/PlantY{str(2007)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plntname':'plant_name', 'state':'state_plant', 'plntzip':'zip_plant', 'zip5':'zip_plant', 'naics':'naics_primary', 'primary_purpose':'naics_primary'}
 }
 readin_dict[2006] = {
         'files':    [f'{2006}/PlantY{str(2006)[2:]}.xls'],
-        'excel_params': {'header':0},
+        'excel_params': {'header':0, 'sheet_name':None},
         'rename_vars':  {'utilcode':'utility_id', 'plntcode':'plant_code', 'plntname':'plant_name', 'state':'state_plant', 'plntzip':'zip_plant', 'zip5':'zip_plant', 'naics':'naics_primary', 'primary_purpose':'naics_primary'}
 }
 

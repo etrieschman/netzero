@@ -186,6 +186,23 @@ if __name__ == '__main__':
     plot_all_summ(dfs_canada, 'fuel_cat', agg, 'style', logscales)
     plot_all_summ(dfs_canada_gas, 'capacity_mw_bucket', agg, 'style', logscales)
 
+
+# %%
+# ANALYSIS: shift in capacity factor
+summ = (dfs_gas
+        .loc[dfs_gas.scenario == 'integrated_proposal']
+        .groupby(['year', 'capacity_mw_bucket', 'capacity_factor_bucket'])
+        .agg({'unitid':'count',
+              'generation_total_gwh':'sum',
+              'co2_emissions_total_million_metric_tons':'sum'})
+        .reset_index())
+
+summ_w = summ.pivot(index=['capacity_mw_bucket', 'year'],
+            columns=['capacity_factor_bucket'],
+            values=['co2_emissions_total_million_metric_tons'])
+summ_w.to_csv(PATH_RESULTS + 'cf_heatmap.csv')
+
+
 # %%
 # ANALYSIS: read-out for Hannah Dobie
 # MOTIVATING QUESTION: What state is getting hit the hardest?

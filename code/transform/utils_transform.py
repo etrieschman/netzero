@@ -27,18 +27,20 @@ pd.set_option('mode.chained_assignment', None)
 
 # read-in helper functions
 def readin_eia_year(path_folder, path_file, excel_params, rename_vars=None):
-    dfs = pd.read_excel(f'{path_folder}{path_file}', sheet_name=None, **excel_params)
+    dfs = pd.read_excel(f'{path_folder}{path_file}', **excel_params)
     if type(dfs) != dict:
         dfs = {False:dfs}
     sdf = pd.DataFrame({})
     for k, df in dfs.items():
         df.columns = (df.columns.str.lower()
-                        .str.replace(' ', '_')
-                        .str.replace('(', '').str.replace(')','')
-                        .str.replace('?', ''))
+                        .str.replace(' ', '_', regex=True)
+                        .str.replace('(', '', regex=True).str.replace(')','', regex=True)
+                        .str.replace('?', '', regex=True)
+                        .str.replace('\n', '_', regex=True)
+                        .str.replace('__', '_', regex=True))
         if rename_vars is not None:
             df = df.rename(columns=rename_vars)
-            df['sheet'] = k
+        df['sheet'] = k.lower().replace(' ', '_')
         sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
     return sdf
 
@@ -51,7 +53,7 @@ def readin_eia_years(path_folder, readin_dict, start_year):
                                      excel_params=readin_dict[y]['excel_params'],
                                      rename_vars=readin_dict[y]['rename_vars'])
                 df['year'] = y
-                df['file'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\d+|\/', '', f).lower()
+                df['file'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\.|\/', '', f).lower()
                 sdf = pd.concat([df, sdf.copy()], axis=0, ignore_index=True)
     return sdf
 

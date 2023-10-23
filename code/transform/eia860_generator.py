@@ -20,7 +20,7 @@ readin_dict[END_YEAR] = {
             f'{END_YEAR}/3_4_Energy_Storage_Y{END_YEAR}.xlsx',
             f'{END_YEAR}/3_5_Multifuel_Y{END_YEAR}.xlsx'
     ],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  None
 }
 # cut corner: 2013/2016 is mostly the same
@@ -43,29 +43,29 @@ for year in range(2016, END_YEAR+1):
 
 readin_dict[2012] = {
     'files':        [f'{2012}/GeneratorY{2012}.xlsx', f'{2012}/MultifuelY{2012}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
 }
 readin_dict[2011] = {
     'files':        [f'{2011}/GeneratorY{2011}.xlsx', f'{2011}/MultifuelY{2011}.xlsx'],
-    'excel_params': {'header':1},
+    'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
 }
 readin_dict[2010] = {
     'files':        [f'{2010}/GeneratorsY{2010}.xls', f'{2010}/MultiFuelY{2010}.xls'],
-    'excel_params': {'header':0},
+    'excel_params': {'header':0, 'sheet_name':None},
     'rename_vars':  {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
 }
 readin_dict[2009] = {
     'files':        [f'{2009}/GeneratorY{str(2009)[2:]}.xls', f'{2009}/MultiFuelY{str(2009)[2:]}.xls'],
-    'excel_params': {'header':0},
+    'excel_params': {'header':0, 'sheet_name':None},
     'rename_vars':  {'nameplate':'nameplate_capacity_mw', 'sector_number':'sector'}
 }
 readin_dict[2008] = {
     'files':        [
         f'{2008}/GenY{str(2008)[2:]}.xls', f'{2008}/MFExistY{str(2008)[2:]}.xls',
         f'{2008}/MFPropY{str(2008)[2:]}.xls', f'{2008}/PRGenY{str(2008)[2:]}.xls'],
-    'excel_params': {'header':0},
+    'excel_params': {'header':0, 'sheet_name':None},
     'rename_vars':  {
            'utilcode':'utility_id', 'plntcode':'plant_code', 'gencode':'generator_id',
             'owner':'ownership', 'primemover':'prime_mover', 'nameplate':'nameplate_capacity_mw',
@@ -79,7 +79,7 @@ readin_dict[2007] = {
     'files':        [
         f'{2007}/GenY{str(2007)[2:]}.xls', f'{2007}/MFExistY{str(2007)[2:]}.xls',
         f'{2007}/MFPropY{str(2007)[2:]}.xls', f'{2007}/PRGenY{str(2007)[2:]}.xls'],
-    'excel_params': {'header':0},
+    'excel_params': {'header':0, 'sheet_name':None},
     'rename_vars':  {
            'utilcode':'utility_id', 'plntcode':'plant_code', 'gencode':'generator_id',
             'owner':'ownership', 'primemover':'prime_mover', 'nameplate':'nameplate_capacity_mw',
@@ -93,7 +93,7 @@ readin_dict[2006] = {
     'files':        [
         f'{2006}/GenY{str(2006)[2:]}.xls', f'{2006}/MFExistY{str(2006)[2:]}.xls',
         f'{2006}/MFPropY{str(2006)[2:]}.xls', f'{2006}/PRGenY{str(2006)[2:]}.xls'],
-    'excel_params': {'header':0},
+    'excel_params': {'header':0, 'sheet_name':None},
     'rename_vars':  {
            'utilcode':'utility_id', 'plntcode':'plant_code', 'gencode':'generator_id',
             'owner':'ownership', 'primemover':'prime_mover', 'nameplate':'nameplate_capacity_mw',
