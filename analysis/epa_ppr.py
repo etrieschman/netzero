@@ -188,6 +188,43 @@ if __name__ == '__main__':
 
 
 # %%
+# ANALYSIS: quantify CCS
+dfs['ccs'] = dfs.capacity_reporting_type.str.lower().str.contains('ccs')
+dfs_gascoal = dfs.loc[
+    dfs.scenario.isin(['updated_baseline', 'integrated_proposal']) & 
+    dfs.fuel_cat.isin(['coal', 'natural_gas'])]
+agg = {'unitid':'count',
+    'generation_total_gwh':'sum'}
+
+# full summary dataset
+display(dfs_gascoal.groupby(['scenario', 'fuel_cat', 'ccs', 'year']).agg(agg))
+
+
+# PLOT
+summ = (dfs_gascoal
+        .loc[dfs_gascoal.ccs]
+        .groupby(['scenario', 'year'])
+        .agg(agg).reset_index())
+
+
+fig, ax = plt.subplots()
+sns.barplot(data=summ, x='year', y='generation_total_gwh', 
+            hue='scenario', ax=ax)
+ax.set_ylabel('Generation (GWh)')
+ax.set_title('Generation from NG and coal with CCS')
+plt.show()
+
+fig, ax = plt.subplots()
+sns.barplot(data=summ, x='year', y='unitid', 
+            hue='scenario', ax=ax)
+ax.set_ylabel('Units')
+ax.set_title('NG and coal units with CCS')
+plt.show()
+
+
+
+
+# %%
 # ANALYSIS: shift in capacity factor
 summ = (dfs_gas
         .loc[dfs_gas.scenario == 'integrated_proposal']
