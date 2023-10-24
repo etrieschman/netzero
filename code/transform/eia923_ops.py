@@ -24,29 +24,48 @@ for yr in range(2011, 2021):
     readin_dict[yr] = readin_dict[2021].copy()
     readin_dict[yr]['files'] = [f'{yr}/EIA923_Schedules_2_3_4_5_M_12_{yr}_Final_Revision.xlsx']
 
-readin_dict[2013]['files'] = [f'EIA923_Schedules_2_3_4_5_{2013}_Final_Revision.xlsx']
-readin_dict[2011]['files'] = [f'EIA923_Schedules_2_3_4_5_{2011}_Final_Revision.xlsx']
+readin_dict[2013]['files'] = [f'{2013}/EIA923_Schedules_2_3_4_5_{2013}_Final_Revision.xlsx']
+readin_dict[2011]['files'] = [f'{2011}/EIA923_Schedules_2_3_4_5_{2011}_Final_Revision.xlsx']
 
 readin_dict[2010] = {
-    'files': [f'EIA923 SCHEDULES 2_3_4_5 Final {2010}.xls'],
+    'files': [f'{2010}/EIA923 SCHEDULES 2_3_4_5 Final {2010}.xls'],
     'excel_params': {'header':7, 'na_values':'.',
                      'sheet_name':['Page 1 Generation and Fuel Data', 'Page 4 Generator Data']},
     'rename_vars': None
 }
-# I AM HERE
 readin_dict[2009] = {
-    'files': [f'SCHEDULE 3A 5A 8A 8B 8C 8D 8E 8F REVISED {2009} 04112011.xls'],
+    'files': [f'{2009}/EIA923 SCHEDULES 2_3_4_5 M Final {2009} REVISED 05252011.xls'],
     'excel_params': {'header':7, 'na_values':'.',
                      'sheet_name':['Page 1 Generation and Fuel Data', 'Page 4 Generator Data']},
     'rename_vars': None
 }
+readin_dict[2008] = {
+    'files': [f'{2008}/eia923December{2008}.xls'],
+    'excel_params': {'header':7, 'na_values':'.',
+                     'sheet_name':['Page 1 Generation and Fuel Data', 'Page 4 Generator Data']},
+    'rename_vars': None
+}
+readin_dict[2007] = {
+    'files': [f'{2007}/f906920_{2007}.xls'],
+    'excel_params': {'header':7, 'na_values':'.',
+                     'sheet_name':['Page 1 Generation and Fuel Data']},
+    'rename_vars': None
+}
+readin_dict[2006] = {
+    'files': [f'{2006}/f906920_{2006}.xls'],
+    'excel_params': {'header':7, 'na_values':'.',
+                     'sheet_name':['Page 1 Generation and Fuel Data']},
+    'rename_vars': None
+}
+
+
 
 # %%
 if __name__ == '__main__':
     # read-in parameters
     print('Reading in data...')
     vars_keep = []
-    df_raw = readin_eia_years(f'{PATH_RAW}eia/f923/', readin_dict, 2014)
+    df_raw = readin_eia_years(f'{PATH_RAW}eia/f923/', readin_dict, 2006)
     # drop state-level fuel increments
     df = df_raw.loc[(df_raw.plant_id != 99999) & (df_raw.plant_name != 'State-Fuel Level Increment')].copy()
     display(df.groupby(['year', 'sheet']).agg({'file':'count'}))
@@ -92,5 +111,5 @@ if __name__ == '__main__':
         dfl.reported_fuel_type_code + dfl.combined_heat_and_power_plant)
     dfl.loc[dfl.sheet == 'page_4_generator_data', 'gid'] = (
         dfl.plant_id.astype(str) + dfl.generator_id.astype(str))
-    summarize_id_counts_byyear(dfl.rename(columns={'plant_id':'pid'}), ['pid', 'puid', 'gid'])
+    display(summarize_id_counts_byyear(dfl.rename(columns={'plant_id':'pid'}), ['pid', 'puid', 'gid']))
 # %%

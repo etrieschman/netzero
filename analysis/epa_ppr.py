@@ -189,36 +189,94 @@ if __name__ == '__main__':
 
 # %%
 # ANALYSIS: quantify CCS
-dfs['ccs'] = dfs.capacity_reporting_type.str.lower().str.contains('ccs')
+dfs_all = pd.concat([dfbc, dfbuc, dfpc, dfpuc], axis=0).reset_index()
+dfs_all = dfs_all.loc[dfs_all.fuel_type.notna() & dfs_all.capacity_reporting_type.notna()]
+dfs = dfs_all.loc[~dfs_all.in_canada]
+dfs['ccs'] = dfs.capacity_reporting_type.str.lower().str.contains('ccs|ccg')
+dfs['generation_total_twh'] = dfs.generation_total_gwh / 1000
 dfs_gascoal = dfs.loc[
-    dfs.scenario.isin(['updated_baseline', 'integrated_proposal']) & 
-    dfs.fuel_cat.isin(['coal', 'natural_gas'])]
+    dfs.scenario.isin(['updated_baseline', 'integrated_proposal']) 
+    & dfs.fuel_cat.isin(['coal', 'natural_gas'])
+    ]
 agg = {'unitid':'count',
-    'generation_total_gwh':'sum'}
+    'generation_total_twh':'sum'}
 
-# full summary dataset
-display(dfs_gascoal.groupby(['scenario', 'fuel_cat', 'ccs', 'year']).agg(agg))
-
-
-# PLOT
+# %%
+# PLOT OVERALL
 summ = (dfs_gascoal
         .loc[dfs_gascoal.ccs]
-        .groupby(['scenario', 'year'])
+        .groupby(['scenario', 'year'], dropna=False)
         .agg(agg).reset_index())
 
-
+barwidth = 1.5
 fig, ax = plt.subplots()
-sns.barplot(data=summ, x='year', y='generation_total_gwh', 
-            hue='scenario', ax=ax)
-ax.set_ylabel('Generation (GWh)')
-ax.set_title('Generation from NG and coal with CCS')
+
+ax.bar(summ.year.drop_duplicates() - barwidth/2, 
+        summ.loc[summ.scenario == 'updated_baseline', 'generation_total_twh'],
+        barwidth, alpha=1, color='#B81E30', label='Baseline')
+ax.bar(summ.year.drop_duplicates() + barwidth/2, 
+        summ.loc[summ.scenario == 'integrated_proposal', 'generation_total_twh'],
+        barwidth, alpha=1, color='#FF5A5A', label='Proposal')
+
+ax.set_ylabel('Total generation (TWh)')
+ax.set_xlabel('Model year')
+ax.legend(title='EPA scenario')
+plt.title('Generation from coal and gas units with CCS')
+plt.rcParams['font.sans-serif'] = 'Arial'
+plt.savefig(PATH_RESULTS + 'fig_gen_w_ccs_total.png', dpi=300, bbox_inches='tight')
 plt.show()
 
+# %%
+# PLOT BY FUEL TYPE
+summ = (dfs_gascoal
+        .loc[dfs_gascoal.ccs]
+        .groupby(['scenario', 'fuel_cat', 'year'], dropna=False)
+        .agg(agg).reset_index())
+base_ng = summ.loc[(summ.scenario == 'updated_baseline') & (summ.fuel_cat == 'natural_gas'), 'generation_total_twh']
+base_coal = summ.loc[(summ.scenario == 'updated_baseline') & (summ.fuel_cat == 'coal'), 'generation_total_twh']
+prop_ng = summ.loc[(summ.scenario == 'integrated_proposal') & (summ.fuel_cat == 'natural_gas'), 'generation_total_twh']
+prop_coal = summ.loc[(summ.scenario == 'integrated_proposal') & (summ.fuel_cat == 'coal'), 'generation_total_twh']
+
+barwidth = 1.5
 fig, ax = plt.subplots()
-sns.barplot(data=summ, x='year', y='unitid', 
-            hue='scenario', ax=ax)
-ax.set_ylabel('Units')
-ax.set_title('NG and coal units with CCS')
+
+alpha = 0.5
+ax.bar(summ.year.drop_duplicates() - barwidth/2, base_ng,
+        barwidth, alpha=alpha, color='#4D7A8B', label='Baseline (NG)')
+ax.bar(summ.year.drop_duplicates() + barwidth/2, prop_ng,        
+        barwidth, alpha=alpha, color='#B2C8D2', label='Proposal (NG)')
+ax.bar(summ.year.drop_duplicates() - barwidth/2, base_coal,
+        barwidth, alpha=alpha, bottom=base_ng, color='#B81E30', label='Baseline (coal)')
+ax.bar(summ.year.drop_duplicates() + barwidth/2, prop_coal,
+        barwidth, alpha=alpha, bottom=prop_ng, color='#FF5A5A', label='Proposal (coal)')
+
+plot_pct = True
+if plot_pct:
+    summ_pct = dfs_gascoal.groupby(['scenario', 'fuel_cat', 'year', 'ccs'])[['generation_total_twh']].sum().reset_index()
+    summ_pct['pct'] = summ_pct.groupby(['scenario', 'fuel_cat', 'year'])['generation_total_twh'].transform('sum')
+    summ_pct['pct'] = summ_pct.generation_total_twh / summ_pct.pct
+    # summ_pct = summ_pct.loc[summ_pct.ccs].groupby(['scenario', 'fuel_cat', 'year'], dropna=False)[['generation_total_twh']].sum().reset_index()
+    axr = ax.twinx()
+    base_ng = summ_pct.loc[(summ_pct.scenario == 'updated_baseline') & (summ_pct.fuel_cat == 'natural_gas') & (summ_pct.ccs), 'pct']
+    base_coal = summ_pct.loc[(summ_pct.scenario == 'updated_baseline') & (summ_pct.fuel_cat == 'coal') & (summ_pct.ccs), 'pct']
+    prop_ng = summ_pct.loc[(summ_pct.scenario == 'integrated_proposal') & (summ_pct.fuel_cat == 'natural_gas') & (summ_pct.ccs), 'pct']
+    prop_coal = summ_pct.loc[(summ_pct.scenario == 'integrated_proposal') & (summ_pct.fuel_cat == 'coal') & (summ_pct.ccs), 'pct']
+
+    axr.plot(summ.year.drop_duplicates() - barwidth/2, base_ng,
+        marker='*', linestyle='', color='#4D7A8B', label='Baseline (NG)')
+    axr.plot(summ.year.drop_duplicates() + barwidth/2, prop_ng,        
+            marker='*', linestyle='', color='#B2C8D2', label='Proposal (NG)')
+    axr.plot(summ.year.drop_duplicates() - barwidth/2, base_coal,
+            marker='*', linestyle='', color='#B81E30', label='Baseline (coal)')
+    axr.plot(summ.year.drop_duplicates() + barwidth/2, prop_coal,
+            marker='*', linestyle='', color='#FF5A5A', label='Proposal (coal)')
+    axr.set_ylabel('Percent of total category generation (*)')
+
+ax.set_ylabel('Total generation (TWh)')
+ax.set_xlabel('Model year')
+ax.legend(title='EPA scenario (Fuel type)', bbox_to_anchor=(.6, .8), loc='upper left')
+plt.title('Generation from coal and natural gas units with CCS')
+plt.savefig(PATH_RESULTS + f'fig_gen_w_ccs_pct{plot_pct}.png', dpi=300, bbox_inches='tight')
 plt.show()
 
 
