@@ -12,3 +12,6 @@ data/raw/*
 data/processed/*
 data/pudl/*
 data/epa_ppr/*
+
+# results files
+results/*
