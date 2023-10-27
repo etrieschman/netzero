@@ -15,26 +15,26 @@ utility = pd.read_parquet(PATH_PROCESSED + 'eia_f860_utility.parquet')
 owner = pd.read_parquet(PATH_PROCESSED + 'eia_f860_ownership.parquet')
 
 # %%
-# Q: DOES OWNERSHIP ADD UP? No
-# DECISIONS:
-# 0. Divide by 100 in settings where decimal is off
-# 1. If owner_count is 1 and percent ownership is "close" to 1, nudge to 1
-# 2. Set all missing ownership to 100% if only 1 owner; 
-#    Set missing ownership to 0% if missing, but sum of ownership is 1
-# 3. TODO: 2010 is a messy year that needs to be reconciled
-owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
-owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
-owner.loc[owner.pct_ownership_total == 100., 'percent_owned'] /= 100.
-owner.loc[(owner.owner_count == 1) & 
-    (np.abs(owner.pct_ownership_total - 1) <= 0.02), 'percent_owned'] = 1.
-owner.loc[(owner.percent_owned.isna()) & (owner.owner_count == 0), 'percent_owned'] = 1.
-owner.loc[(owner.percent_owned.isna()) & (owner.owner_count > 0), 'percent_owned'] = 0.
-# print(owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'])['percent_owned'].sum().value_counts().sort_index())
-owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
-owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
-print("Count of generators where ownership doesn't add up after cleaning, by year:")
-display(owner.loc[np.abs(owner.pct_ownership_total - 1.) >= 0.02].groupby('year')['generator_id'].agg(['count', 'nunique']))
-owner = owner.drop(columns=['pct_ownership_total', 'owner_count'])
+# # Q: DOES OWNERSHIP ADD UP? No
+# # DECISIONS:
+# # 0. Divide by 100 in settings where decimal is off
+# # 1. If owner_count is 1 and percent ownership is "close" to 1, nudge to 1
+# # 2. Set all missing ownership to 100% if only 1 owner; 
+# #    Set missing ownership to 0% if missing, but sum of ownership is 1
+# # 3. TODO: 2010 is a messy year that needs to be reconciled
+# owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
+# owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
+# owner.loc[owner.pct_ownership_total == 100., 'percent_owned'] /= 100.
+# owner.loc[(owner.owner_count == 1) & 
+#     (np.abs(owner.pct_ownership_total - 1) <= 0.02), 'percent_owned'] = 1.
+# owner.loc[(owner.percent_owned.isna()) & (owner.owner_count == 0), 'percent_owned'] = 1.
+# owner.loc[(owner.percent_owned.isna()) & (owner.owner_count > 0), 'percent_owned'] = 0.
+# # print(owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'])['percent_owned'].sum().value_counts().sort_index())
+# owner['pct_ownership_total'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('sum').round(5)
+# owner['owner_count'] = owner.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)['percent_owned'].transform('count')
+# print("Count of generators where ownership doesn't add up after cleaning, by year:")
+# display(owner.loc[np.abs(owner.pct_ownership_total - 1.) >= 0.02].groupby('year')['generator_id'].agg(['count', 'nunique']))
+# owner = owner.drop(columns=['pct_ownership_total', 'owner_count'])
 
 # %%
 # MERGE GENERATORS <--> OWNERS
@@ -87,17 +87,17 @@ print('CHECK: merged ID-years\t', len(m_goup))
 m = m_goup
 
 # %% 
-# UPDATE COLUMNS: OWNERSHIP TYPE
-m_cln = m.copy()
-update_mask = m_cln.ownership_id.isna().values
-update_to_cols = ['owner_name', 'city_owner', 'state_owner', 'zip_owner', 'ownership_id']
-update_from_cols = ['utility_name', 'city_util', 'state_util', 'zip_util']
-for col_f, col_t in zip(update_to_cols, update_from_cols + ['utility_id']):
-    m_cln.loc[update_mask, col_f] = m_cln.loc[update_mask, col_t]
-m_cln.loc[update_mask, 'ownership'] = 'S' # Single ownership by respondent
-m_cln.loc[~update_mask & (m_cln.percent_owned == 1.), 'ownership'] = 'W' # Wholly owned by an entity other than respondent
-m_cln.loc[~update_mask & (m_cln.percent_owned != 1.), 'ownership'] = 'J' # Jointly owned with another entity
-m_cln.loc[update_mask, 'percent_owned'] = 1.
+# # UPDATE COLUMNS: OWNERSHIP TYPE
+# m_cln = m.copy()
+# update_mask = m_cln.ownership_id.isna().values
+# update_to_cols = ['owner_name', 'city_owner', 'state_owner', 'zip_owner', 'ownership_id']
+# update_from_cols = ['utility_name', 'city_util', 'state_util', 'zip_util']
+# for col_f, col_t in zip(update_to_cols, update_from_cols + ['utility_id']):
+#     m_cln.loc[update_mask, col_f] = m_cln.loc[update_mask, col_t]
+# m_cln.loc[update_mask, 'ownership'] = 'S' # Single ownership by respondent
+# m_cln.loc[~update_mask & (m_cln.percent_owned == 1.), 'ownership'] = 'W' # Wholly owned by an entity other than respondent
+# m_cln.loc[~update_mask & (m_cln.percent_owned != 1.), 'ownership'] = 'J' # Jointly owned with another entity
+# m_cln.loc[update_mask, 'percent_owned'] = 1.
 
 # %% 
 # UPDATE COLUMNS: OPERATION STATUS

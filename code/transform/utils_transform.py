@@ -15,7 +15,7 @@ for path in [PATH_DATA, PATH_INTERIM, PATH_PROCESSED]:
         os.makedirs(path)
 
 # define years
-START_YEAR = 2018
+START_YEAR = 2006
 END_YEAR = 2021
 
 
@@ -56,7 +56,7 @@ def readin_eia_years(path_folder, readin_dict, start_year):
                                      excel_params=readin_dict[y]['excel_params'],
                                      rename_vars=readin_dict[y]['rename_vars'])
                 df['year'] = y
-                df['file'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\.|\/', '', f).lower()
+                df['file'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\.|\/|(\d{4}|\d{6})', '', f).lower()
                 sdf = pd.concat([df, sdf.copy()], axis=0, ignore_index=True)
     return sdf
 
@@ -69,9 +69,9 @@ def readin_epa(yr_start, yr_end, path_folder, vars_keep=None, vars_coll=None):
         df_in = pd.read_csv(path_folder + f, low_memory=False)
         # clean and subset columns
         df_in.columns = (df_in.columns.str.lower()
-                         .str.replace(' ', '_').str.replace('/', '_')
-                         .str.replace('&', 'and')
-                         .str.replace('(', '').str.replace(')',''))
+                         .str.replace(' ', '_', regex=False).str.replace('/', '_', regex=False)
+                         .str.replace('&', 'and', regex=False)
+                         .str.replace('(', '', regex=False).str.replace(')','', regex=False))
         if vars_keep is not None:
             df_in = df_in[vars_keep]
         if vars_coll is not None:

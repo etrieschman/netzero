@@ -9,6 +9,11 @@ from utils_transform import (
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
+def make_dates(df, vm, vy):
+    dates = pd.to_datetime(df[vy].astype(str) + df[vm].astype(str), 
+        format='%Y%m', errors='coerce')
+    return dates
+
 # %%
 # GENERATOR DATA
 readin_dict = {}
@@ -106,6 +111,7 @@ readin_dict[2006] = {
 
 # %%
 if __name__ == '__main__':
+    print('Reading in data...')
     vars_date = ['operating_month', 'operating_year',
              'current_month', 'current_year',
              'planned_retirement_month', 'planned_retirement_year',
@@ -130,11 +136,12 @@ if __name__ == '__main__':
     gdf.to_parquet(PATH_INTERIM + 'eia860_generator.parquet', index=False)
 
     # DEDUP GENERATORS
+    print('Deduping generators...')
     gdf['dup_key'] = gdf[['utility_id', 'plant_code', 'generator_id', 'year']].apply(lambda row: '_'.join(row.values.astype(str)), axis=1)
     gdf['duplicate'] = gdf.dup_key.isin(gdf.loc[gdf.dup_key.duplicated(), 'dup_key'].drop_duplicates())
     print('total dups:', gdf.duplicate.sum())
     # DECISION: Drop duplicates duplicated across sheets, taking info from the main, "generator" sheet (and "proposed gen" in 06-08)
-    gdf['dup_ingen'] = gdf.file.str.startswith(('gen', 'prgen'))
+    gdf['dup_ingen'] = gdf.file.str.contains(('gen'))
     gdf['dup_anyingen'] = gdf.groupby('dup_key')['dup_ingen'].transform('sum')
     gdf['dup_keep'] = True
     gdf.loc[~gdf.dup_ingen & gdf.dup_anyingen, 'dup_keep'] = False
@@ -142,11 +149,45 @@ if __name__ == '__main__':
     gdf_dedup['dup_key'] = gdf_dedup[['utility_id', 'plant_code', 'generator_id', 'year']].apply(lambda row: '_'.join(row.values.astype(str)), axis=1)
     gdf_dedup['duplicate'] = gdf_dedup.dup_key.isin(gdf_dedup.loc[gdf_dedup.dup_key.duplicated(), 'dup_key'].drop_duplicates())
     print('total dups:', gdf_dedup.duplicate.sum())
-    gdf_dedup.drop(columns=['dup_key', 'dup_ingen', 'dup_anyingen', 'dup_keep'], inplace=True)
+    gdf_dedup.drop(columns=['dup_key', 'dup_ingen', 'dup_anyingen', 'dup_keep', 'duplicate'], inplace=True)
+
+    print('Cleaning up date columns...')
+    # UPDATE COLUMNS: OPERATION STATUS
+    # FINDING: MISSING OR UNKOWN STATUS ONLY IN 2006
+    print('unknown statuses:')
+    display(gdf_dedup.loc[gdf_dedup.status == 'nan'].groupby(['sheet', 'file'])['utility_id'].count())
+    # DECISION: These all look like 2006 proposed generators. updating status to `P`
+    gdf_dedup.loc[gdf_dedup.status == 'nan', 'status'] = 'IP'
+    mask_op = (gdf_dedup.status == 'OP')
+    mask_pl = (gdf_dedup.status.isin(('TS', 'P', 'L', 'T', 'U', 'V')))
+    mask_sb = (gdf_dedup.status.isin(('SB', 'OA', 'OS', 'BU'))) # BU is from 2006 only, stands for "backup"
+    mask_ds = (gdf_dedup.status.isin(('RE', 'CN', 'IP', 'OT')))
+
+    # UPDATE COLUMNS: OPERATION DATES
+    vars_month = ['operating_month', 'current_month', 'retirement_month', 'planned_retirement_month']
+    vars_year = ['operating_year', 'current_year', 'retirement_year', 'planned_retirement_year']
+    for vm in vars_month:
+        gdf_dedup.loc[(gdf_dedup[vm] > 12) | (gdf_dedup[vm] < 1), vm] = 1
+    for vm, vy in zip(vars_month, vars_year):
+        gdf_dedup.loc[gdf_dedup[vy].notna() & gdf_dedup[vm].isna(), vm] = 1
+        gdf_dedup.loc[gdf_dedup[vy] == 0, vy] = pd.NA
+        gdf_dedup.loc[gdf_dedup[vy].isna(), vm] = pd.NA
+
+    gdf_dedup.loc[mask_op | mask_sb | mask_ds , 'dt_operation_start'] = (
+        make_dates(gdf_dedup.loc[mask_op | mask_sb | mask_ds], 'operating_month', 'operating_year'))
+    gdf_dedup.loc[mask_op | mask_sb, 'dt_operation_end'] = (
+        make_dates(gdf_dedup.loc[mask_op | mask_sb], 'planned_retirement_month', 'planned_retirement_year'))
+    gdf_dedup.loc[mask_pl, 'dt_operation_start'] = (
+        make_dates(gdf_dedup.loc[mask_pl], 'current_month', 'current_year'))
+    gdf_dedup.loc[mask_ds, 'dt_operation_end'] = (
+        make_dates(gdf_dedup.loc[mask_ds], 'retirement_month', 'retirement_year'))
+    
     # WRITE TO FILE
-    # write
+    print('Writing to file...')
     gdf_dedup.to_parquet(PATH_PROCESSED + 'eia860_generator.parquet', index=False)
+    
     # summarize
+    print('Summarizing unique IDs over time...')
     gdf_dedup['pid'] = gdf_dedup.utility_id.astype(str) + '.' + gdf_dedup.plant_code.astype(str)
     gdf_dedup['gid'] = gdf_dedup.pid + '.' + gdf_dedup.generator_id
     gdf_dedup = gdf_dedup.rename(columns={'utility_id':'uid'})

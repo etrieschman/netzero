@@ -129,7 +129,7 @@ if __name__ == '__main__':
     df.to_parquet(PATH_PROCESSED + 'eia_f923_ops.parquet', index=False)
     
     # transpose wide to long
-    print('Transposing wide to long...')
+    # print('Transposing wide to long...')
     # vars_id = ['year', 'file', 'sheet', 'operator_id', 'plant_id', 
     #            'generator_id', 'nuclear_unit_id',
     #            'combined_heat_and_power_plant',

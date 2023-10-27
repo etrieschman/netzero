@@ -62,6 +62,7 @@ readin_dict[2006] = {
 # %%
 if __name__ == '__main__':
     # read-in parameters
+    print('Reading in data...')
     vars_keep = ['utility_id', 'plant_code', 'generator_id', 'ownership_id', 'status', 
              'owner_name','city_owner', 'state_owner', 'zip_owner', 'percent_owned']
     odf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
@@ -72,12 +73,57 @@ if __name__ == '__main__':
     odf['percent_owned'] = pd.to_numeric(odf.percent_owned.astype(str).str.strip(), errors='coerce').astype('Float64').round(3)
     odf = odf.astype({'generator_id':str, 'status':str, 'owner_name':str, 'state_owner':str})
     odf.to_parquet(PATH_INTERIM + 'eia860_ownership.parquet', index=False)
+
+    print('Cleaning key variables...')
+    summ_dict = {}
+    # FIRST: OWNERSHIP PERCENT
+    # TODO: 2010 is a messy year that needs to be reconciled
+    odf['pct_ownership_total'] = (
+        odf.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)
+        ['percent_owned'].transform('sum').round(5))
+    odf['owner_count'] = (
+        odf.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)
+        ['percent_owned'].transform('count'))
+    print("Before cleaning: count of generators where ownership doesn't add up:")
+    print(odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique']))
+    # 0. Divide by 100 in settings where decimal is off
+    mask_decimal = odf.pct_ownership_total >= 50.
+    summ_dict['decimal off'] = mask_decimal.sum()
+    odf.loc[mask_decimal, 'percent_owned'] /= 100.
+    # 1. Scale if close to 100
+    mask_almost_100pct = np.abs(odf.pct_ownership_total - 1) <= 0.06
+    summ_dict['close_to_1'] = mask_almost_100pct.sum()
+    odf.loc[mask_almost_100pct, 'percent_owned'] /= odf.loc[mask_almost_100pct, 'pct_ownership_total']
+    # 2. If ownership is missing, but no one else
+    mask_miss_only_owner = (odf.owner_count == 0)
+    mask_miss_other_owners = (odf.percent_owned.isna()) & (odf.owner_count > 0)
+    odf.loc[mask_miss_only_owner, 'percent_owned'] = 1.
+    odf.loc[mask_miss_other_owners, 'percent_owned'] = 0.
+    summ_dict['missing_only_owner'] = mask_miss_only_owner.sum()
+    summ_dict['missing_other_owner'] = mask_miss_other_owners.sum()
+    odf['pct_ownership_total'] = (
+        odf.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)
+        ['percent_owned'].transform('sum').round(5))
+    odf['owner_count'] = (
+        odf.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)
+        ['percent_owned'].transform('count'))
+    print('Cleaning summary:\n', summ_dict)
+    print("After cleaning: count of generators where ownership doesn't add up:")
+    print(odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique']))
+    # TODO: need to handle 2010, it's really messy
+    
+    # SECOND: OWNERSHIP STATUS
+    mask_o_is_u = odf.ownership_id == odf.utility_id
+    odf.loc[mask_o_is_u & (odf.percent_owned == 1.), 'ownership'] = 'S' # Single ownership by respondent
+    odf.loc[~mask_o_is_u & (odf.percent_owned == 1.), 'ownership'] = 'W' # Wholly owned by an entity other than respondent
+    odf.loc[~mask_o_is_u & (odf.percent_owned != 1.), 'ownership'] = 'J' # Jointly owned with another entity
+    odf = odf.drop(columns=['pct_ownership_total', 'owner_count'])
     odf.to_parquet(PATH_PROCESSED + 'eia860_ownership.parquet', index=False)
+
+    print('Summarizing unique identifiers...')
     odf['pid'] = odf.utility_id.astype(str) + '.' + odf.plant_code.astype(str)
     odf['gid'] = odf.pid + '.' + odf.generator_id
     odf['oid'] = odf.gid + '.' + odf.ownership_id.astype(str)
     odf = odf.rename(columns={'utility_id':'uid'})
     print('Ownership dataset:')
-    summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id'])
-
-
+    print(summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id']))
