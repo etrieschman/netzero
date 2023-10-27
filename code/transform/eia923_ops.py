@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # write to file
     df.drop(columns=['reserved1', 'reserved2', 'reserved_1', 'reserved_2', 'reserved'])
     df = df.astype({'generator_id':str})
-    df.to_parquet(PATH_PROCESSED + 'eia_f923_ops.parquet', index=False)
+    df.to_parquet(PATH_PROCESSED + 'eia923_ops.parquet', index=False)
     
     # transpose wide to long
     # print('Transposing wide to long...')

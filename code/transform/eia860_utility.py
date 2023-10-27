@@ -61,11 +61,13 @@ readin_dict[2006] = {
 # %%
 if __name__ == '__main__':
     # read-in parameters
-    vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type']
+    vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type', 'year', 'sheet', 'file']
     df = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
     # set datatypes
     df['utility_id'] = pd.to_numeric(df.utility_id).astype('Int64')
+    df['street_address'] = df.street_address.astype(str)
     df['zip_util'] = pd.to_numeric(df.zip_util.astype(str).str.strip(), errors='coerce').astype('Int64')
+    df = df[vars_keep].copy()
     # save intermediate file
     df.to_parquet(PATH_INTERIM + 'eia860_utility.parquet', index=False)
 
