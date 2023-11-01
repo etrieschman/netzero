@@ -15,7 +15,7 @@ for path in [PATH_DATA, PATH_INTERIM, PATH_PROCESSED]:
         os.makedirs(path)
 
 # define years
-START_YEAR = 2006
+START_YEAR = 2015
 END_YEAR = 2021
 
 
@@ -26,7 +26,7 @@ pd.set_option('mode.chained_assignment', None)
 
 
 # read-in helper functions
-def readin_eia_year(path_folder, path_file, excel_params, rename_vars=None):
+def readin_eia_year(path_folder, path_file, excel_params, rename_vars=None, keep_vars=None):
     dfs = pd.read_excel(f'{path_folder}{path_file}', **excel_params)
     if type(dfs) != dict:
         dfs = {False:dfs}
@@ -43,18 +43,21 @@ def readin_eia_year(path_folder, path_file, excel_params, rename_vars=None):
                         .str.replace('&', 'and', regex=False))
         if rename_vars is not None:
             df = df.rename(columns=rename_vars)
+        if keep_vars is not None:
+            df = df.drop(columns=df.columns.difference(keep_vars))
         df['sheet'] = k.lower().replace(' ', '_')
         sdf = pd.concat([df, sdf], axis=0, ignore_index=True)
     return sdf
 
-def readin_eia_years(path_folder, readin_dict, start_year):
+def readin_eia_years(path_folder, readin_dict, start_year, keep_vars=None):
     sdf = pd.DataFrame({})
     for y in readin_dict.keys():
         if y >= start_year:
             for f in tqdm(readin_dict[y]['files'], postfix=f'year: {y}'):
                 df = readin_eia_year(path_folder, path_file=f, 
                                      excel_params=readin_dict[y]['excel_params'],
-                                     rename_vars=readin_dict[y]['rename_vars'])
+                                     rename_vars=readin_dict[y]['rename_vars'],
+                                     keep_vars=keep_vars)
                 df['year'] = y
                 df['file'] = re.sub(r'Y(.*?)\.|xlsx|xls|\_|\.|\/|(\d{4}|\d{6})', '', f).lower()
                 sdf = pd.concat([df, sdf.copy()], axis=0, ignore_index=True)

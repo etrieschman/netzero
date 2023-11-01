@@ -29,7 +29,7 @@ readin_dict[END_YEAR] = {
     'rename_vars':  None
 }
 # cut corner: 2013/2016 is mostly the same
-for year in range(2016, END_YEAR+1):
+for year in range(2013, END_YEAR+1):
     readin_dict[year] = readin_dict[END_YEAR].copy()
     if year >= 2016:
         readin_dict[year]['files'] = [
@@ -109,17 +109,32 @@ readin_dict[2006] = {
             }
 }
 
+vars_date = ['operating_month', 'operating_year',
+            'current_month', 'current_year',
+            'retirement_month', 'retirement_year',
+            'effective_month', 'effective_year',
+            'planned_retirement_month', 'planned_retirement_year']
+vars_keep = vars_date + [
+ 'year', 
+ 'utility_id', 'plant_code', 'generator_id',
+ 'status', 'ownership',
+ 'technology', 'prime_mover',
+ 'sector',
+ 'nameplate_capacity_mw', 'summer_capacity_mw', 'winter_capacity_mw',
+ 'multiple_fuels', 'cofire_fuels', 'associated_with_combined_heat_and_power_system',
+ 'energy_source_1', 'energy_source_2', 'energy_source_3',
+ 'energy_source_4', 'energy_source_5', 'energy_source_6',
+ 'cofire_energy_source_1', 'cofire_energy_source_2',
+ 'cofire_energy_source_3', 'cofire_energy_source_4',
+ 'cofire_energy_source_5', 'cofire_energy_source_6',
+ 'startup_source_1', 'startup_source_2',
+ 'startup_source_3', 'startup_source_4',
+ 'sheet', 'file']
+
 # %%
 if __name__ == '__main__':
     print('Reading in data...')
-    vars_date = ['operating_month', 'operating_year',
-             'current_month', 'current_year',
-             'planned_retirement_month', 'planned_retirement_year',
-             'retirement_month', 'retirement_year']
-    vars_keep = ['utility_id', 'plant_code', 'generator_id', 'status', 'ownership', 'sector', 
-                'energy_source_1', 'cofire_energy_source_1', 
-                'prime_mover', 'nameplate_capacity_mw'] + vars_date
-    gdf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
+    gdf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR, keep_vars=None)
     # UPDATE DATA TYPES AND SAVE INTERMEDIATE
     gdf['utility_id'] = pd.to_numeric(gdf.utility_id, errors='coerce').astype('Int64')
     gdf = gdf.loc[gdf.utility_id.notna()]
@@ -134,6 +149,10 @@ if __name__ == '__main__':
     col_str = gdf.columns[gdf.dtypes == 'object']
     gdf[col_str] = gdf[col_str].astype(str)
     gdf.to_parquet(PATH_INTERIM + 'eia860_generator.parquet', index=False)
+
+    # restrict variables
+    new_cols = ['year', 'file', 'sheet']
+    gdf = gdf.drop(columns=gdf.columns.difference(vars_keep + new_cols))
 
     # DEDUP GENERATORS
     print('Deduping generators...')
@@ -155,7 +174,7 @@ if __name__ == '__main__':
     # UPDATE COLUMNS: OPERATION STATUS
     # FINDING: MISSING OR UNKOWN STATUS ONLY IN 2006
     print('unknown statuses:')
-    display(gdf_dedup.loc[gdf_dedup.status == 'nan'].groupby(['sheet', 'file'])['utility_id'].count())
+    print(gdf_dedup.loc[gdf_dedup.status == 'nan'].groupby(['sheet', 'file'])['utility_id'].count())
     # DECISION: These all look like 2006 proposed generators. updating status to `P`
     gdf_dedup.loc[gdf_dedup.status == 'nan', 'status'] = 'IP'
     mask_op = (gdf_dedup.status == 'OP')

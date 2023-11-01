@@ -12,9 +12,9 @@ import os, io
 from credentials import EPA_API_KEY # local user: save credentials.py file with api key
 
 # Set API key
-START_YEAR = 2018
+START_YEAR = 2015
 END_YEAR = 2021
-PATH_EPA = '../data/raw/epa/'
+PATH_EPA = '../../data/raw/epa/'
 epa_params = {'api_key': EPA_API_KEY}
 
 # GET BULK FILES
@@ -67,12 +67,14 @@ if __name__ == '__main__':
       URL_BASE = 'https://api.epa.gov/easey/bulk-files/'
       URL_METADATA = "https://api.epa.gov/easey/camd-services/bulk-files"
       # get files
+      print('Getting filepaths...')
       bulkFiles = get_bulk_epa_files(URL_METADATA, epa_params)
       # print out unique data types in the bulk data files
       print('Unique data types in the bulk data files:')
       print(set([fileObj['metadata']['dataType'] for fileObj in bulkFiles]))
 
       # DOWNLOAD FACILITY DATA
+      print('Downloading facility data')
       facFiles = [fileObj for fileObj in bulkFiles if 
                   (fileObj['metadata']['dataType']=='Facility')]
       facFilters = {'minYear': START_YEAR}
@@ -88,6 +90,7 @@ if __name__ == '__main__':
                   (fileObj['metadata']['dataType']=='Emissions')]
       print('Emission granularity:', 
             set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
+      print('Downloading daily emissions data...')
       emFiles = [fileObj for fileObj in emFiles if
             (fileObj['metadata']['dataSubType']=='Daily')]
       filesToDownload = [fileObj for fileObj in emFiles if 
@@ -99,19 +102,20 @@ if __name__ == '__main__':
                   subset_col='Operating Time Count')
 
       # DOWNLOAD HOURLY EMISSIONS DATA
-      START_YEAR, END_YEAR = 2013, 2021
-      emFiles = [fileObj for fileObj in bulkFiles if 
-                  (fileObj['metadata']['dataType']=='Emissions')]
-      print('Emission granularity:', 
-            set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
-      emFiles = [fileObj for fileObj in emFiles if
-            (fileObj['metadata']['dataSubType']=='Hourly')]
-      filesToDownload = [fileObj for fileObj in emFiles if 
-                        (('stateCode' in fileObj['metadata']) & 
-                        (int(fileObj['metadata']['year']) >= START_YEAR) & 
-                        (int(fileObj['metadata']['year']) <= END_YEAR))]
-      print('Number of files to download: '+ str(len(filesToDownload)))
-      download_epa_files(URL_BASE, filesToDownload, PATH_EPA + '/emissions/hourly/', epa_params,
-                  subset_col='Operating Time')
+    #   START_YEAR, END_YEAR = 2013, 2021
+    #   emFiles = [fileObj for fileObj in bulkFiles if 
+    #               (fileObj['metadata']['dataType']=='Emissions')]
+    #   print('Emission granularity:', 
+    #         set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
+    #   print('Downloading hourly emissions data...')  
+    #   emFiles = [fileObj for fileObj in emFiles if
+    #         (fileObj['metadata']['dataSubType']=='Hourly')]
+    #   filesToDownload = [fileObj for fileObj in emFiles if 
+    #                     (('stateCode' in fileObj['metadata']) & 
+    #                     (int(fileObj['metadata']['year']) >= START_YEAR) & 
+    #                     (int(fileObj['metadata']['year']) <= END_YEAR))]
+    #   print('Number of files to download: '+ str(len(filesToDownload)))
+    #   download_epa_files(URL_BASE, filesToDownload, PATH_EPA + '/emissions/hourly/', epa_params,
+    #               subset_col='Operating Time')
 
 # %%

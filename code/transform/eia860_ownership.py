@@ -74,6 +74,10 @@ if __name__ == '__main__':
     odf = odf.astype({'generator_id':str, 'status':str, 'owner_name':str, 'state_owner':str})
     odf.to_parquet(PATH_INTERIM + 'eia860_ownership.parquet', index=False)
 
+    # drop unnecessary columns
+    newcols = ['year', 'sheet', 'file']
+    odf = odf.drop(columns=odf.columns.difference(vars_keep + newcols))
+
     print('Cleaning key variables...')
     summ_dict = {}
     # FIRST: OWNERSHIP PERCENT

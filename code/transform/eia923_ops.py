@@ -85,7 +85,7 @@ if __name__ == '__main__':
     # read-in parameters
     print('Reading in data...')
     vars_keep = []
-    df_raw = readin_eia_years(f'{PATH_RAW}eia/f923/', readin_dict, 2006)
+    df_raw = readin_eia_years(f'{PATH_RAW}eia/f923/', readin_dict, START_YEAR)
     # drop state-level fuel increments
     df = df_raw.loc[(df_raw.plant_id != 99999) & (df_raw.plant_name != 'State-Fuel Level Increment')].copy()
     print(df.groupby(['year', 'sheet']).agg({'file':'count'}))
@@ -124,8 +124,9 @@ if __name__ == '__main__':
         df.rename(columns={v:f'{pre}_tot_an'}, inplace=True)
 
     # write to file
-    df.drop(columns=['reserved1', 'reserved2', 'reserved_1', 'reserved_2', 'reserved'])
-    df = df.astype({'generator_id':str})
+    df = (df
+          .drop(columns=df.columns.intersection(['reserved1', 'reserved2', 'reserved_1', 'reserved_2', 'reserved']))
+          .astype({'generator_id':str}))
     df.to_parquet(PATH_PROCESSED + 'eia923_ops.parquet', index=False)
     
     # transpose wide to long

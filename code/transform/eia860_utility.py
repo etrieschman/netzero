@@ -61,17 +61,21 @@ readin_dict[2006] = {
 # %%
 if __name__ == '__main__':
     # read-in parameters
-    vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type', 'year', 'sheet', 'file']
+    print('Reading in data...')
+    vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type']
     df = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
     # set datatypes
     df['utility_id'] = pd.to_numeric(df.utility_id).astype('Int64')
     df['street_address'] = df.street_address.astype(str)
     df['zip_util'] = pd.to_numeric(df.zip_util.astype(str).str.strip(), errors='coerce').astype('Int64')
-    df = df[vars_keep].copy()
     # save intermediate file
     df.to_parquet(PATH_INTERIM + 'eia860_utility.parquet', index=False)
 
+    # drop variables
+    newcols = ['year', 'sheet', 'file']
+    df = df[vars_keep + newcols].copy()
     # look at duplicates
+    print('Cleaning data...')
     df['dup_key'] = df.utility_id.astype(str) + '_' + df.year.astype(str)
     df['duplicate'] = df.dup_key.isin(df.loc[df.dup_key.duplicated(), 'dup_key'].drop_duplicates())
     print('number of dups, by year: ')
@@ -89,9 +93,11 @@ if __name__ == '__main__':
     df_dedup.drop(columns=['dup_key', 'duplicate', 'num_cols_nan', 'min_num_cols_nan', 'dup_keep'], inplace=True)
     
     # save final file
+    print('Writing to file...')
     df_dedup.to_parquet(PATH_PROCESSED + 'eia860_utility.parquet', index=False)
 
     # summarize unique ids
+    print('Summarizing unique identifiers...')
     udf = df.rename(columns={'utility_id':'uid'})
     print('Utility dataset:')
     print(summarize_id_counts_byyear(udf.copy(), ['uid']))
