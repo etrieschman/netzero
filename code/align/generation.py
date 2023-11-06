@@ -242,3 +242,4 @@ if __name__ == '__main__':
     ggp.to_parquet(PATH_PROCESSED + 'df_generation.parquet')
 
 # %%
+# SPOT CHECK: COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
