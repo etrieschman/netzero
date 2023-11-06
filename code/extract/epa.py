@@ -9,12 +9,12 @@ from datetime import date
 from tqdm import tqdm
 import os, io
 
-from credentials import EPA_API_KEY # local user: save credentials.py file with api key
+from credentials import EPA_API_KEY # local user: save credentials.py file in code/extract with api key
 
 # Set API key
-START_YEAR = 2015
+START_YEAR = 2006
 END_YEAR = 2021
-PATH_EPA = '../../data/raw/epa/'
+PATH_EPA = '../data/raw/epa/'
 epa_params = {'api_key': EPA_API_KEY}
 
 # GET BULK FILES
@@ -45,7 +45,7 @@ def download_epa_files(url_base, filesToDownload, filename_prefix, parameters, s
             # converters = {col:'Float64' for col in numeric_cols}
             content = pd.read_csv(io.StringIO(response.text), dtype=str)
             if subset_col is not None:
-                content = content.astype({subset_col:'Float64'})
+                content = content.astype({subset_col:float})
                 # print(fileObj['s3Path'])
                 # print(content.shape)
                 content = content.loc[content[subset_col] != 0.]

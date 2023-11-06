@@ -79,6 +79,7 @@ if __name__ == '__main__':
     pdf['utility_id'] = pd.to_numeric(pdf.utility_id).astype('Int64')
     pdf['plant_code'] = pd.to_numeric(pdf.plant_code).astype('Int64')
     pdf['zip_plant'] = pd.to_numeric(pdf.zip_plant.astype(str).str.strip(), errors='coerce').astype('Int64')
+    pdf['sector'] = pd.to_numeric(pdf.sector, errors='coerce').astype('Int64')
     pdf = pdf.astype({'plant_name':str, 'state_plant':str, 'latitude':str, 'longitude':str})
     col_str = pdf.columns[pdf.dtypes == 'object']
     pdf[col_str] = pdf[col_str].astype(str)

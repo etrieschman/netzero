@@ -69,6 +69,8 @@ if __name__ == '__main__':
     df['street_address'] = df.street_address.astype(str)
     df['zip_util'] = pd.to_numeric(df.zip_util.astype(str).str.strip(), errors='coerce').astype('Int64')
     # save intermediate file
+    stringcols = df.select_dtypes(include='object').columns
+    df[stringcols] = df[stringcols].astype(str)
     df.to_parquet(PATH_INTERIM + 'eia860_utility.parquet', index=False)
 
     # drop variables
