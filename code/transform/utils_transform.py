@@ -79,9 +79,9 @@ def readin_epa(yr_start, yr_end, path_folder, vars_keep=None, vars_coll=None):
             df_in = df_in[vars_keep]
         if vars_coll is not None:
             df_in['quarter'] = pd.to_datetime(df_in.date).dt.to_period('Q')
-            df_in = (df_in.groupby(vars_coll['id']+['quarter'])[vars_coll['val']]
-                     .sum().reset_index())
             df_in['year'] = df_in.quarter.dt.year
+            df_in = (df_in.groupby(vars_coll['id'])[vars_coll['val']]
+                     .sum().reset_index())
         # only readin selected range
         if df_in.year[0] not in range(yr_start, yr_end+1):
             continue        

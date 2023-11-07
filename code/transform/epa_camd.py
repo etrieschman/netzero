@@ -18,7 +18,7 @@ vars_keep_fac = ['facility_id', 'unit_id', 'facility_name', 'state',
        'commercial_operation_date', 'operating_status',
        'max_hourly_hi_rate_mmbtu_hr', 'associated_generators_and_nameplate_capacity_mwe']
 vars_coll_em = {
-       'id': ['facility_id', 'unit_id', 'facility_name', 'state'],
+       'id': ['year', 'facility_id', 'unit_id', 'facility_name', 'state'],
        'val': ['sum_of_the_operating_time', 'gross_load_mwh', 'steam_load_1000_lb', 
                   'so2_mass_short_tons', 'co2_mass_short_tons', 'nox_mass_short_tons', 
                   'heat_input_mmbtu']}
