@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # global variables
-PATH_DATA = '../../data/'
+PATH_DATA = '../data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 DENOM, ROUND = 1e6, 2
 
@@ -87,9 +87,9 @@ def create_subplants(xw):
 
 # %%
 # Allocation method 1
-def align_datasets(edf, gdf, xw, vars_em):
+def align_datasets(edf, gdf, xwc, vars_em):
     # 0. make ID tables
-    xwid = xw[['camd_uid', 'eia_gid']].copy()
+    xwid = xwc[['camd_uid', 'eia_gid']].copy()
     edfid = edf[['year', 'facility_id', 'unit_id'] + vars_em].copy()
     edfid['co2_mass_short_mtons'] = edfid.co2_mass_short_tons/1e6
     edfid['uid'] = 'camd_' + edfid.facility_id.astype(str) + '_' + edfid.unit_id
@@ -125,7 +125,7 @@ def align_datasets(edf, gdf, xw, vars_em):
     # 2. Summarize merge
     summ_m = pd.concat([summ_medf, summ_mgdf, summ_mgdfedf], axis=1).reset_index()
     summ_m['both'] = summ_m.level_1 == 'both'
-    summ_m = summ_m.groupby(['year', 'both']).sum()
+    summ_m = summ_m.drop(columns='level_1').groupby(['year', 'both']).sum()
     summ_m_pct = summ_m / summ_m.groupby(['year']).transform('sum')
     summ_m_pct.columns = [f'{col}_pct' for col in summ_m_pct.columns]
     summ_m = pd.concat([summ_m, summ_m_pct], axis=1)
@@ -238,8 +238,9 @@ if __name__ == '__main__':
 
     print('\nCalculating emisisons from 923 data...')
     gen_e923 = calculate_eia_emissions(gendf, ef)
-    gen_ee = pd.merge(left=gen_e, right=gen_e923, how='outer',
-            on=['year', 'plant_code', 'generator_id'])
+    gen_ee = pd.merge(left=gen_e, how='outer',
+                      right=gen_e923[['year', 'plant_code', 'generator_id', 'co2_tons_per_mmbtu', 'co2_mass_short_tons_gen_923']],
+                        on=['year', 'plant_code', 'generator_id'])
     
     print('Check: how do emissions compare?')
     summ_compare = compare_emissions(gen_ee, 'co2_mass_short_tons_gen', 'co2_mass_short_tons_gen_923')
@@ -247,3 +248,4 @@ if __name__ == '__main__':
     
     print('\nWriting to file...')
     gen_ee.to_parquet(PATH_PROCESSED + 'df_emissions.parquet')
+# %%

@@ -259,7 +259,13 @@ if __name__ == '__main__':
     ggp, allsumm = allocate_eia923_operations(ggp)
     print('Allocation summary:\n', allsumm)
     # write to file
-    ggp.to_parquet(PATH_PROCESSED + 'df_generation.parquet')
+    vars_keep = ['year', 'utility_id', 'plant_code', 'generator_id', 
+                 'nameplate_capacity_mw', 'status', 'energy_source_1',
+                'reported_prime_mover', 'reported_fuel_type_code',
+                'net_gen_tot_an', 'quantity_tot_an', 'elec_quantity_tot_an', 
+                'tot_mmbtu_tot_an', 'elec_mmbtu_tot_an',
+                'pct_generation', 'pct_allocation']
+    ggp[vars_keep].to_parquet(PATH_PROCESSED + 'df_generation.parquet')
 
 # %%
 # SPOT CHECK: COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3

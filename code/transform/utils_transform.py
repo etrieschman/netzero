@@ -15,7 +15,7 @@ for path in [PATH_DATA, PATH_INTERIM, PATH_PROCESSED]:
         os.makedirs(path)
 
 # define years
-START_YEAR = 2006
+START_YEAR = 2015
 END_YEAR = 2021
 
 
