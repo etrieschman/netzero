@@ -9,6 +9,7 @@ import seaborn as sns
 # global variables
 PATH_DATA = '../data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
+PATH_RESULTS = '../results/cleaning/emissions/'
 DENOM, ROUND = 1e6, 2
 
 # options
@@ -17,16 +18,16 @@ pd.set_option('display.max_rows', 250)
 
 # %%
 # READIN DATA
-def load_data():
-    gdf = pd.read_parquet(PATH_PROCESSED + 'eia860_generator.parquet')
-    gendf = pd.read_parquet(PATH_PROCESSED + 'df_generation.parquet')
-    pdf = pd.read_parquet(PATH_PROCESSED + 'eia860_plant.parquet')
-    udf = pd.read_parquet(PATH_PROCESSED + 'eia860_utility.parquet')
-    odf = pd.read_parquet(PATH_PROCESSED + 'eia860_ownership.parquet')
-    edf = pd.read_parquet(PATH_PROCESSED + 'epa_emissions.parquet')
-    efdf = pd.read_parquet(PATH_PROCESSED + 'epa_facility.parquet')
-    xw = pd.read_csv(PATH_DATA + 'resources/epa_eia_crosswalk.csv')
-    ef = pd.read_csv(PATH_DATA + 'resources/se_emissions_factors.csv', header=1, na_values='*')
+def load_data(path=PATH_DATA):
+    gdf = pd.read_parquet(path + 'processed/df_generators.parquet')
+    pdf = pd.read_parquet(path + 'processed/df_plants.parquet')
+    udf = pd.read_parquet(path + 'processed/df_utilities.parquet')
+    odf = pd.read_parquet(path + 'processed/df_owners.parquet')
+    gendf = pd.read_parquet(path + 'processed/df_generation.parquet')
+    edf = pd.read_parquet(path + 'processed/epa_emissions.parquet')
+    efdf = pd.read_parquet(path + 'processed/epa_facility.parquet')
+    xw = pd.read_csv(path + 'resources/epa_eia_crosswalk.csv')
+    ef = pd.read_csv(path + 'resources/se_emissions_factors.csv', header=1, na_values='*')
     return gdf, gendf, pdf, udf, odf, edf, efdf, xw, ef
 
 # %% 
@@ -130,6 +131,7 @@ def align_datasets(edf, gdf, xwc, vars_em):
     summ_m_pct.columns = [f'{col}_pct' for col in summ_m_pct.columns]
     summ_m = pd.concat([summ_m, summ_m_pct], axis=1)
     summ_m = summ_m[summ_m.columns.sort_values()]
+
     
     return gdfid_xw_edfid, summ_m
 
@@ -185,6 +187,7 @@ def compare_emissions(df, var_em_epa, var_em_eia, hist_thresh=1e4):
     p = sns.FacetGrid(df, col='year', col_wrap=4) 
     p.map(plt.scatter, var_em_eia, var_em_epa, alpha=0.5)
     p.map(plt.axline, xy1=(0,0), slope=1, color='C1')
+    plt.savefig(PATH_RESULTS + 'fig_summ_eia_v_epa_scatter.png', dpi=300)
     plt.show()
 
     # histograms
@@ -199,6 +202,7 @@ def compare_emissions(df, var_em_epa, var_em_eia, hist_thresh=1e4):
     ax[0].set_title('Histogram of difference between emissions from EIA923 and EPA')
     ax[1].legend()
     ax[0].legend()
+    plt.savefig(PATH_RESULTS + 'fig_summ_eia_v_epa_hist.png', dpi=300)
     plt.show()
 
     gen_ee['has_emissions_epa'] = gen_ee.co2_mass_short_tons_gen > 0
@@ -222,6 +226,7 @@ if __name__ == '__main__':
         'so2_mass_short_tons', 'co2_mass_short_tons', 'nox_mass_short_tons',
         'heat_input_mmbtu']
     g_x_e, summ_all = align_datasets(edf, gendf, xwc, vars_em)
+    summ_all.to_csv(PATH_RESULTS + 'df_summ_align')
 
     # CHECK: How are emissions distributed across statuses?
     print('Check: emissions across generator status:')
@@ -241,11 +246,20 @@ if __name__ == '__main__':
     gen_ee = pd.merge(left=gen_e, how='outer',
                       right=gen_e923[['year', 'plant_code', 'generator_id', 'co2_tons_per_mmbtu', 'co2_mass_short_tons_gen_923']],
                         on=['year', 'plant_code', 'generator_id'])
+    gen_ee[['co2_mass_short_tons_gen', 'co2_mass_short_tons_gen_923']] = gen_ee[['co2_mass_short_tons_gen', 'co2_mass_short_tons_gen_923']].fillna(0)
     
     print('Check: how do emissions compare?')
-    summ_compare = compare_emissions(gen_ee, 'co2_mass_short_tons_gen', 'co2_mass_short_tons_gen_923')
-    print(summ_compare)
+    summ_compare = compare_emissions(gen_ee, var_em_epa='co2_mass_short_tons_gen', 
+                                     var_em_eia='co2_mass_short_tons_gen_923')
+    summ_compare.to_csv(PATH_RESULTS + 'df_summ_eia_v_epa.csv')
     
     print('\nWriting to file...')
     gen_ee.to_parquet(PATH_PROCESSED + 'df_emissions.parquet')
+
+
+# %%
+summ_all[summ_all.columns[~summ_all.columns.str.endswith(('_xw', '_xw_pct'))]]
+
+# %%
+summ_compare
 # %%

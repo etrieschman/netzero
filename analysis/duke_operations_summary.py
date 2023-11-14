@@ -90,15 +90,23 @@ summ_df[vars_id + vars_other].to_csv(PATH_RESULTS + 'duke/summary.csv', index=Fa
 # %%
 # GENERATION MIX BY STATE
 import seaborn as sns
+var = 'nameplate_capacity_mw'
+show_pct = True
+options = {
+    'nameplate_capacity_mw':{'units':'MW', 'denom':1},
+    'net_gen_tot_an':{'units':'TWh', 'denom':1e6}
+}
 gm = (dgge_op
       .groupby(['year', 'state_plant', 'energy_source_1'])
-      .agg({'net_gen_tot_an':'sum'}) / 1e6).reset_index()
-gm['net_gen_tot_an_state'] = gm.groupby(['year', 'state_plant'])['net_gen_tot_an'].transform('sum')
-gm['net_gen_pct'] = gm.net_gen_tot_an / gm.net_gen_tot_an_state
+      .agg({var:'sum'}) / options[var]['denom']).reset_index()
+gm[f'{var}_state'] = gm.groupby(['year', 'state_plant'])[var].transform('sum')
+gm[f'{var}_pct'] = gm[var] / gm[f'{var}_state']
 
 # Pivot the data to get energy type breakdown for each state by year
+var_summ = var if not show_pct else f'{var}_pct'
+var_summ_unit = 'pct' if show_pct else options[var]['units']
 gmt = gm.pivot_table(
-    values='net_gen_pct', index=['state_plant', 'year'], 
+    values=var_summ, index=['state_plant', 'year'], 
     columns='energy_source_1', aggfunc='sum')
 # Fill missing values with 0 (if any)
 gmt = gmt.fillna(0).reset_index()
@@ -114,9 +122,9 @@ fig, axes = plt.subplots(
 # Loop through each state and create a stacked bar chart
 for ax, state in zip(axes.flatten(), states):
     state_data = gmt.loc[gmt.state_plant == state]
-    state_data.plot(kind='bar', x='year', legend=False, stacked=True, cmap='tab20', ax=ax, title=f'Net Generation in {state}')
+    state_data.plot(kind='bar', x='year', legend=False, stacked=True, cmap='tab20', ax=ax, title=f'{var} in {state}')
     ax.set_xlabel('Year')
-    ax.set_ylabel('Net Generation (pct)')
+    ax.set_ylabel(f'{var_summ_unit}')
 axes[2,1].legend(title='Energy Type')
 
 # Adjust the layout to prevent overlap

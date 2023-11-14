@@ -79,6 +79,47 @@ def eia860_sample_selection(gdf, pdf, udf, odf):
 summ
 
 # %%
+# SIMPLIFY KEY COLUMNS: ENERGY SOURCE
+# categories from EIA: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
+vars_source = gdf_sub.columns[gdf_sub.columns.str.contains('source')]
+subcat_to_energy_source = {
+    'natural_gas':['NG'],
+    'coal':['ANT', 'BIT', 'LIG', 'SGC', 'SUB', 'WC', 'RC'],
+    'petroleum':['DFO', 'JF', 'KER', 'PC', 'PG', 'RFO', 'SGP', 'WO'],
+    'other_gases':['BFG', 'OG'],
+    'wind':['WND'],
+    'hydropower':['WAT'],
+    'solar':['SUN'],
+    'geothermal':['GEO'],
+    'waste_and_tires':['AB', 'MSW', 'OBS', 'WDS', 'WH', 'TDF'],
+    'biomass':['OBL', 'SLW', 'BLQ', 'WDL', 'LFG', 'OBG'], 
+    'batteries':['MWH'],
+    'hydrogen':['H2'],
+    'purchased_steam':['PUR'],
+}
+cat_to_subcat = {
+    'fossil_fuels':['natural_gas', 'coal', 'petroleum', 'other_gases'],
+    'nuclear':['nuclear'],
+    'renewables':['wind', 'hydropower', 'solar', 'biomass', 'geothermal'],
+    'other': ['waste_and_tires', 'biomass', 'batteries', 'hydrogen', 'purchased_steam', 'other']
+}
+source_to_subcat = {source:subcat for subcat, sources in subcat_to_energy_source.items() 
+                    for source in sources}
+subcat_to_cat = {subcat:cat for cat, subcats in cat_to_subcat.items() 
+                    for subcat in subcats}
+for var_source in vars_source:
+    gdf_sub[f'{var_source}_subcat'] = gdf_sub[var_source].map(source_to_subcat)
+    gdf_sub[f'{var_source}_cat'] = gdf_sub[f'{var_source}_subcat'].map(subcat_to_cat)
+
+
+# %%
+# WRITE TO FILE
+gdf_sub.to_parquet(PATH_PROCESSED + 'df_generators.parquet')
+pdf_sub.to_parquet(PATH_PROCESSED + 'df_plants.parquet')
+udf_sub.to_parquet(PATH_PROCESSED + 'df_utilities.parquet')
+odf_sub.to_parquet(PATH_PROCESSED + 'df_owners.parquet')
+
+# %%
 # GENERATOR RETIREMENT DATE
 # 1. Take retirement date from latest available year
 gdf_sub['dt_operation_end_from_latest_year'] = np.where(gdf_sub.dt_operation_end.notna(), gdf_sub.year, np.nan)

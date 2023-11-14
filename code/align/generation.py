@@ -4,6 +4,7 @@ import pandas as pd
 
 # global variables
 PATH_PROCESSED = '../data/processed/'
+PATH_RESULTS = '../results/cleaning/generation/'
 DENOM, ROUND = 1e6, 2
 
 # options
@@ -26,10 +27,10 @@ def get_annual_generation(df, groupvars='year', sumvars='net_gen_tot_an',
 # %%
 # LOAD DATASETS
 def load_datasets(path=PATH_PROCESSED):
-    gdf = pd.read_parquet(path + 'eia860_generator.parquet')
-    pdf = pd.read_parquet(path + 'eia860_plant.parquet')
-    udf = pd.read_parquet(path + 'eia860_utility.parquet')
-    odf = pd.read_parquet(path + 'eia860_ownership.parquet')
+    gdf = pd.read_parquet(path + 'df_generators.parquet')
+    pdf = pd.read_parquet(path + 'df_plants.parquet')
+    udf = pd.read_parquet(path + 'df_utilities.parquet')
+    odf = pd.read_parquet(path + 'df_owners.parquet')
     opsdf = pd.read_parquet(path + 'eia923_ops.parquet')
     return gdf, pdf, udf, odf, opsdf
 
@@ -79,46 +80,6 @@ def clean_eia923(opsdf):
 
     # return
     return opgendf, opppdf, summ
-
-
-
-def clean_eia860(gdf, pdf, udf, odf):
-    # 0. Sample selection on generators
-    summ = {'gen':{}, 'pla':{}, 'uti':{}, 'own':{}}
-    summ['gen']['0_n_total'] = get_annual_counts(gdf)
-    summ['pla']['0_n_total'] = get_annual_counts(pdf)
-    summ['uti']['0_n_total'] = get_annual_counts(udf)
-    summ['own']['0_n_total'] = get_annual_counts(odf)
-    # 1. drop non-contig states
-    pdf_sub = pdf.loc[~pdf.state_plant.isin(['AK', 'HI', 'PR'])]
-    gdf_sub = subset_from_ids(df=gdf, fromdf=pdf_sub, idcol='plant_code')
-    udf_sub = subset_from_ids(df=udf, fromdf=gdf_sub, idcol='utility_id')
-    odf_sub = subset_from_ids(df=odf, fromdf=gdf_sub, idcol='generator_id')
-    summ['gen']['1_n_drop_noncontig_state'] = get_annual_counts(gdf_sub)
-    summ['pla']['1_n_drop_noncontig_state'] = get_annual_counts(pdf_sub)
-    summ['uti']['1_n_drop_noncontig_state'] = get_annual_counts(udf_sub)
-    summ['own']['1_n_drop_noncontig_state'] = get_annual_counts(odf_sub)
-    # 2. drop CHP plants
-    pdf_sub = pdf_sub.loc[pdf_sub.sector.isin([1,2,4,6])]
-    gdf_sub = subset_from_ids(df=gdf_sub, fromdf=pdf_sub, idcol='plant_code')
-    udf_sub = subset_from_ids(df=udf_sub, fromdf=gdf_sub, idcol='utility_id')
-    odf_sub = subset_from_ids(df=odf_sub, fromdf=gdf_sub, idcol='generator_id')
-    summ['gen']['2_n_drop_chp'] = get_annual_counts(gdf_sub)
-    summ['pla']['2_n_drop_chp'] = get_annual_counts(pdf_sub)
-    summ['uti']['2_n_drop_chp'] = get_annual_counts(udf_sub)
-    summ['own']['2_n_drop_chp'] = get_annual_counts(odf_sub)
-    # 3. drop generation units with no nameplate capacity
-    gdf_sub = gdf_sub.loc[(gdf_sub.nameplate_capacity_mw > 0) & gdf_sub.nameplate_capacity_mw.notna()]
-    pdf_sub = subset_from_ids(df=pdf_sub, fromdf=gdf_sub, idcol='plant_code')
-    udf_sub = subset_from_ids(df=udf_sub, fromdf=gdf_sub, idcol='utility_id')
-    odf_sub = subset_from_ids(df=odf_sub, fromdf=gdf_sub, idcol='generator_id')
-    summ['gen']['3_n_drop_nocapacity'] = get_annual_counts(gdf_sub)
-    summ['pla']['3_n_drop_nocapacity'] = get_annual_counts(pdf_sub)
-    summ['uti']['3_n_drop_nocapacity'] = get_annual_counts(udf_sub)
-    summ['own']['3_n_drop_nocapacity'] = get_annual_counts(odf_sub)
-    # summary
-    # summ = pd.DataFrame(summ)
-    return gdf_sub, pdf_sub, udf_sub, odf_sub, summ
 
 
 
@@ -213,18 +174,21 @@ def allocate_eia923_operations(ggp):
 
     # summary
     print('Allocation by status, 2013/2021 (N, TWh):\n', ggp.loc[(ggp.year.isin([2013, 2021]))].groupby(['year', 'status']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
-    print('Allocation by energy source, 2013/2021 (N, TWh):\n', ggp.loc[(ggp.year.isin([2013, 2021]))].groupby(['year', 'energy_source_1']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
+    # print('Allocation by energy source, 2013/2021 (N, TWh):\n', ggp.loc[(ggp.year.isin([2013, 2021]))].groupby(['year', 'energy_source_1']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
 
     # summarize
     steps = ['0_gen_from_egu', '1_plus_gen_from_opstatus', '2_plus_gen_from_otopstatus', '3_plus_gen_from_reststatus']
     summ = pd.DataFrame()
     for step in steps:
-        summ_s = (ggp[groupvars + ['net_gen_tot_an', 'net_gen_tot_an_po_remaining', step]]
+        summ_g = (ggp[groupvars + ['generator_id', 'net_gen_tot_an', step]]
                   .drop_duplicates()
                   .groupby([step, 'year'])
-                  .agg({'utility_id':'count', 'net_gen_tot_an':'sum', 
-                        'net_gen_tot_an_po_remaining':'sum'}))
-
+                  .agg({'utility_id':'count', 'net_gen_tot_an':'sum'}))
+        summ_pp = (ggp[groupvars + ['net_gen_tot_an_po_remaining', step]]
+                  .drop_duplicates()
+                  .groupby([step, 'year'])
+                  .agg({'net_gen_tot_an_po_remaining':'sum'}))
+        summ_s = pd.merge(summ_g, summ_pp, left_index=True, right_index=True)
         summ_s.columns = ['n', 'twh_tot', 'twh_pp_remaining']
         summ_s.twh_tot /= DENOM
         summ_s.twh_pp_remaining /= DENOM
@@ -232,8 +196,10 @@ def allocate_eia923_operations(ggp):
         summ = pd.concat([summ_s, summ], axis=0)
     summ = summ.pivot(columns='step')
     summ.index.names = ['allocated', 'year']
+    summ.loc[summ.index.get_level_values(0), [col for col in summ.columns if 'remaining' in col[0]]] = pd.NA
+    summ.loc[summ.index.get_level_values(0) == False, [col for col in summ.columns if 'remaining' not in col[0]]] = pd.NA
+    summ = summ.groupby('year').sum()
 
-    # summ = pd.DataFrame(summ).T
     return ggp, summ
 
 
@@ -246,27 +212,42 @@ if __name__ == '__main__':
     # clean datasets
     opsgendf, opsppdf, opssumm = clean_eia923(opsdf)
     opssumm = pd.DataFrame(opssumm).T
-    print('Generation data summary:\n', opssumm)
-    gdfs, pdfs, udfs, odfs, gensumm = clean_eia860(gdf, pdf, udf, odf)
-    print('Generator data summary:\n', gensumm)
+    opssumm.to_csv(PATH_RESULTS + 'df_summ_generation.csv')
 
     # align datasets
-    ggp, alignsumm = align_eia923_to_eia860(gdfs, opsgendf, opsppdf)
-    print('Aligning generation summary:\n', alignsumm)
+    ggp, alignsumm = align_eia923_to_eia860(gdf, opsgendf, opsppdf)
+    alignsumm.to_csv(PATH_RESULTS + 'df_summ_align.csv')
     
     # allocate operations data
     ggp, allsumm = allocate_eia923_operations(ggp)
-    print('Allocation summary:\n', allsumm)
+    allsumm.to_csv(PATH_RESULTS + 'df_summ_allocate.csv')
+
+    # summarize 2021 by category to spotcheck
+    # COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
+    year = 2021
+    catsumm = ggp.loc[ggp.year == year].groupby(['energy_source_1_cat', 'energy_source_1_subcat'])[['net_gen_tot_an']].sum() / 1e6
+    catsumm['ratio'] = catsumm.net_gen_tot_an / catsumm.net_gen_tot_an.sum()
+    catsumm.to_csv(PATH_RESULTS + 'df_summ_{year}_totals.csv')
+
     # write to file
     vars_keep = ['year', 'utility_id', 'plant_code', 'generator_id', 
-                 'nameplate_capacity_mw', 'status', 'energy_source_1',
+                 'nameplate_capacity_mw', 'status', 
+                 'energy_source_1', 'energy_source_1_subcat', 'energy_source_1_cat',
                 'reported_prime_mover', 'reported_fuel_type_code',
                 'net_gen_tot_an', 'quantity_tot_an', 'elec_quantity_tot_an', 
                 'tot_mmbtu_tot_an', 'elec_mmbtu_tot_an',
                 'pct_generation', 'pct_allocation']
     ggp[vars_keep].to_parquet(PATH_PROCESSED + 'df_generation.parquet')
 
-# %%
-# SPOT CHECK: COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
 
+
+# %%
+# READOUT FOR ALLSUMM
+unique_cats = allsumm.columns.get_level_values(0).unique()
+for cat in unique_cats:
+    print(allsumm[allsumm.columns[allsumm.columns.get_level_values(0) == cat]])
+# %%
+# READOUT FOR ALIGNSUMM
+temp = alignsumm.reset_index()
+temp.loc[temp.merge_go != 'left_only'].pivot(index=['year', 'merge_go'], columns='cat')
 # %%
