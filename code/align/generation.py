@@ -175,8 +175,8 @@ def allocate_eia923_operations(ggp):
     ggp['net_gen_tot_an_po_remaining'] = (ggp.net_gen_tot_an_po.fillna(0) - ggp.net_gen_tot_an_go.fillna(0)).clip(0)
          
     # which generators should we allocate to?
-    print('Status of generators with reported generation:')
-    print(ggp.loc[ggp.net_gen_tot_an > 0].groupby('status')['net_gen_tot_an'].agg(['sum', 'count']))
+    print('Generation by status among EGUs with generation, 2013/2021 (N, MWh):')
+    print(ggp.loc[(ggp.year.isin([2013, 2021])) & (ggp.net_gen_tot_an > 0)].groupby(['year', 'status']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
     # DECISION: allocate only to OP generators if available. The only to OA, OS, and SB if available. Then to All others if not
     ggp['group_has_opstatus'] = ggp.status == 'OP'
     ggp['group_has_opstatus'] = ggp.groupby(groupvars)['group_has_opstatus'].transform('max')
@@ -212,8 +212,8 @@ def allocate_eia923_operations(ggp):
         ggp[var] *= ggp['pct_allocation']
 
     # summary
-    print('Allocation by status, 2021 (N, TWh):\n', ggp.loc[ggp.year == 2021].groupby('status').agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
-    print('Allocation by energy source, 2021 (N, TWh):\n', ggp.loc[ggp.year == 2021].groupby('energy_source_1').agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
+    print('Allocation by status, 2013/2021 (N, TWh):\n', ggp.loc[(ggp.year.isin([2013, 2021]))].groupby(['year', 'status']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
+    print('Allocation by energy source, 2013/2021 (N, TWh):\n', ggp.loc[(ggp.year.isin([2013, 2021]))].groupby(['year', 'energy_source_1']).agg({'utility_id':'count', 'net_gen_tot_an':lambda x:(x.sum()/DENOM).round(ROUND)}))
 
     # summarize
     steps = ['0_gen_from_egu', '1_plus_gen_from_opstatus', '2_plus_gen_from_otopstatus', '3_plus_gen_from_reststatus']
@@ -254,7 +254,6 @@ if __name__ == '__main__':
     ggp, alignsumm = align_eia923_to_eia860(gdfs, opsgendf, opsppdf)
     print('Aligning generation summary:\n', alignsumm)
     
-    # %%
     # allocate operations data
     ggp, allsumm = allocate_eia923_operations(ggp)
     print('Allocation summary:\n', allsumm)
