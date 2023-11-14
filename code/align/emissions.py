@@ -25,8 +25,8 @@ def load_data():
     odf = pd.read_parquet(PATH_PROCESSED + 'eia860_ownership.parquet')
     edf = pd.read_parquet(PATH_PROCESSED + 'epa_emissions.parquet')
     efdf = pd.read_parquet(PATH_PROCESSED + 'epa_facility.parquet')
-    xw = pd.read_csv(PATH_DATA + 'epa_eia_crosswalk.csv')
-    ef = pd.read_csv(PATH_DATA + 'se_emissions_factors.csv', header=1, na_values='*')
+    xw = pd.read_csv(PATH_DATA + 'resources/epa_eia_crosswalk.csv')
+    ef = pd.read_csv(PATH_DATA + 'resources/se_emissions_factors.csv', header=1, na_values='*')
     return gdf, gendf, pdf, udf, odf, edf, efdf, xw, ef
 
 # %% 
@@ -104,20 +104,20 @@ def align_datasets(edf, gdf, xwc, vars_em):
     edfid_xw = (pd.merge(left=edfid, right=xwid, how='outer',
                         left_on='uid', right_on='camd_uid', indicator='merge_e')
                         .drop(columns='camd_uid'))
-    summ_medf = edfid_xw.groupby(['year', 'merge_e']).agg({'uid':'nunique', 'co2_mass_short_mtons':'sum'})
+    summ_medf = edfid_xw.groupby(['year', 'merge_e'], observed=False).agg({'uid':'nunique', 'co2_mass_short_mtons':'sum'})
     summ_medf.columns = [f'{col}_xw' for col in summ_medf.columns]
     edfid_xw = edfid_xw.loc[edfid_xw.merge_e != 'right_only']
     # 1.b Merge generator id tables with crosswalk
     gdfid_xw = (pd.merge(left=gdfid, right=xwid, how='outer',
                         left_on=['gid'], right_on=['eia_gid'], indicator='merge_g')
                         .drop(columns='eia_gid'))
-    summ_mgdf = gdfid_xw.groupby(['year', 'merge_g']).agg({'gid':'nunique', 'nameplate_capacity_mw':'sum'})
+    summ_mgdf = gdfid_xw.groupby(['year', 'merge_g'], observed=False).agg({'gid':'nunique', 'nameplate_capacity_mw':'sum'})
     summ_mgdf.columns = [f'{col}_xw' for col in summ_mgdf.columns]
     gdfid_xw = gdfid_xw.loc[gdfid_xw.merge_g != 'right_only']
     # 1.c Merge emisisons with generator ids 
     gdfid_xw_edfid = pd.merge(left=gdfid_xw, right=edfid_xw, how='outer',
                             left_on=['year', 'gid', 'camd_uid'], right_on=['year', 'eia_gid', 'uid'], indicator='merge')
-    summ_mgdfedf = (gdfid_xw_edfid.groupby(['year', 'merge'])
+    summ_mgdfedf = (gdfid_xw_edfid.groupby(['year', 'merge'], observed=False)
                     .agg({'gid':'nunique', 'uid':'nunique', 
                         'co2_mass_short_mtons':'sum',
                         'nameplate_capacity_mw':'sum'}))
