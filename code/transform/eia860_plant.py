@@ -4,22 +4,20 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-from utils_transform import (
-    PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
 # %%
 # OWNERSHIP DATA
 readin_dict = {}
-readin_dict[END_YEAR] = {
-    'files':    [f'{END_YEAR}/2___Plant_Y{END_YEAR}.xlsx'],
+readin_dict[2021] = {
+    'files':    [f'{2021}/2___Plant_Y{2021}.xlsx'],
     'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  {'state':'state_plant', 'zip':'zip_plant', 'primary_purpose_naics_code':'naics_primary'}
 }
 # cut corner: 2013+ is all the same
-for yr in range(2013, END_YEAR+1):
-    readin_dict[yr] = readin_dict[END_YEAR].copy()
+for yr in range(2013, 2021+1):
+    readin_dict[yr] = readin_dict[2021].copy()
     readin_dict[yr]['files'] = [f'{yr}/2___Plant_Y{yr}.xlsx']
 
 readin_dict[2012] = {
@@ -73,9 +71,23 @@ vars_keep = [
 
 # %%
 if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('transform_eia860_plant')
+
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_raw = snakemake.params.indir
+    intfile = snakemake.output.intfile
+    outfile = snakemake.output.outfile
+
     # read-in parameters
     print('Reading in data...')
-    pdf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR, keep_vars=None)
+    pdf = readin_eia_years(path_raw, readin_dict, year_start, keep_vars=None)
     pdf['utility_id'] = pd.to_numeric(pdf.utility_id).astype('Int64')
     pdf['plant_code'] = pd.to_numeric(pdf.plant_code).astype('Int64')
     pdf['zip_plant'] = pd.to_numeric(pdf.zip_plant.astype(str).str.strip(), errors='coerce').astype('Int64')
@@ -84,12 +96,12 @@ if __name__ == '__main__':
     col_str = pdf.columns[pdf.dtypes == 'object']
     pdf[col_str] = pdf[col_str].astype(str)
     print('Writing to file...')
-    pdf.to_parquet(PATH_INTERIM + 'eia860_plant.parquet', index=False)
+    pdf.to_parquet(intfile, index=False)
 
     # drop variables
     new_cols = ['year', 'file', 'sheet']
     pdf = pdf.drop(columns=pdf.columns.difference(vars_keep + new_cols))
-    pdf.to_parquet(PATH_PROCESSED + 'eia860_plant.parquet', index=False)
+    pdf.to_parquet(outfile, index=False)
     pdf['pid'] = pdf.utility_id.astype(str) + '.' + pdf.plant_code.astype(str)
     pdf = pdf.rename(columns={'utility_id':'uid'})
     print('Summarizing unique identifiers...')

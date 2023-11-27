@@ -4,22 +4,20 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-from utils_transform import (
-    PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
 # %%
 # UTILITY DATA
 readin_dict = {}
-readin_dict[END_YEAR] = {
-    'files': [f'{END_YEAR}/1___Utility_Y{END_YEAR}.xlsx'],
+readin_dict[2021] = {
+    'files': [f'{2021}/1___Utility_Y{2021}.xlsx'],
     'excel_params':{'header':1, 'sheet_name':None},
     'rename_vars':{'city':'city_util', 'state':'state_util', 'zip':'zip_util'}
 }
 # cut corner: 2013+ is all the same
-for yr in range(2013, END_YEAR+1):
-    readin_dict[yr] = readin_dict[END_YEAR].copy()
+for yr in range(2013, 2021+1):
+    readin_dict[yr] = readin_dict[2021].copy()
     readin_dict[yr]['files'] = [f'{yr}/1___Utility_Y{yr}.xlsx']
 
 readin_dict[2012] = {
@@ -60,10 +58,24 @@ readin_dict[2006] = {
 
 # %%
 if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('transform_eia860_utility')
+
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_raw = snakemake.params.indir
+    intfile = snakemake.output.intfile
+    outfile = snakemake.output.outfile
+
     # read-in parameters
     print('Reading in data...')
     vars_keep = ['utility_id', 'utility_name', 'city_util', 'state_util', 'zip_util', 'entity_type']
-    df = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
+    df = readin_eia_years(path_raw, readin_dict, year_start)
     # set datatypes
     df['utility_id'] = pd.to_numeric(df.utility_id).astype('Int64')
     df['street_address'] = df.street_address.astype(str)
@@ -71,7 +83,7 @@ if __name__ == '__main__':
     # save intermediate file
     stringcols = df.select_dtypes(include='object').columns
     df[stringcols] = df[stringcols].astype(str)
-    df.to_parquet(PATH_INTERIM + 'eia860_utility.parquet', index=False)
+    df.to_parquet(intfile, index=False)
 
     # drop variables
     newcols = ['year', 'sheet', 'file']
@@ -96,7 +108,7 @@ if __name__ == '__main__':
     
     # save final file
     print('Writing to file...')
-    df_dedup.to_parquet(PATH_PROCESSED + 'eia860_utility.parquet', index=False)
+    df_dedup.to_parquet(outfile, index=False)
 
     # summarize unique ids
     print('Summarizing unique identifiers...')

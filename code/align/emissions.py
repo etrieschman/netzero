@@ -214,9 +214,24 @@ def compare_emissions(df, var_em_epa, var_em_eia, hist_thresh=1e4):
 
 
 # %% RUN SCRIPT
-if __name__ == '__main__':  
+if __name__ == '__main__':
+    # if "snakemake" not in globals():
+    #     # readin mock snakemake
+    #     import sys, os
+    #     parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    #     sys.path.insert(0, parent_dir)
+    #     from utils import mock_snakemake
+    #     snakemake = mock_snakemake('align_emissions')
+
+    # year_start = snakemake.params.year_start
+    # year_end = snakemake.params.year_end
+    # indir_facility = snakemake.params.indir_facility
+    # indir_emissions = snakemake.params.indir_emissions
+    # outfile_facility = snakemake.output.outfile_facility
+    # outfile_emissions = snakemake.output.outfile_emisisons
+    
     print('\nReading in data...')  
-    __, gendf, __, __, __, edf, efdf, xw, ef = load_data()
+    gdf, __, __, __, __, edf, efdf, xw, ef = load_data()
     print('\nCleaning crosswalk...')
     xwc = clean_xw(xw.copy())
 
@@ -225,9 +240,10 @@ if __name__ == '__main__':
         'sum_of_the_operating_time', 'gross_load_mwh', 'steam_load_1000_lb',
         'so2_mass_short_tons', 'co2_mass_short_tons', 'nox_mass_short_tons',
         'heat_input_mmbtu']
-    g_x_e, summ_all = align_datasets(edf, gendf, xwc, vars_em)
+    g_x_e, summ_all = align_datasets(edf, gdf, xwc, vars_em)
     summ_all.to_csv(PATH_RESULTS + 'df_summ_align')
 
+# %%
     # CHECK: How are emissions distributed across statuses?
     print('Check: emissions across generator status:')
     print(g_x_e.loc[g_x_e.co2_mass_short_mtons > 0].groupby(['status'], dropna=False)['co2_mass_short_mtons'].sum())

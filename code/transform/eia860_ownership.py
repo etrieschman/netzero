@@ -4,22 +4,20 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-from utils_transform import (
-    PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
 # %%
 # OWNERSHIP DATA
 readin_dict = {}
-readin_dict[END_YEAR] = {
-    'files': [f'{END_YEAR}/4___Owner_Y{END_YEAR}.xlsx'],
+readin_dict[2021] = {
+    'files': [f'{2021}/4___Owner_Y{2021}.xlsx'],
     'excel_params':{'header':1, 'sheet_name':None},
     'rename_vars':{'city_owner':'owner_city', 'owner_state':'state_owner', 'owner_zip':'zip_owner'}
 }
 # cut corner: 2013+ is all the same
-for yr in range(2013, END_YEAR+1):
-    readin_dict[yr] = readin_dict[END_YEAR].copy()
+for yr in range(2013, 2021+1):
+    readin_dict[yr] = readin_dict[2021].copy()
     readin_dict[yr]['files'] = [f'{yr}/4___Owner_Y{yr}.xlsx']
 
 readin_dict[2012] = {
@@ -61,18 +59,32 @@ readin_dict[2006] = {
 
 # %%
 if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('transform_eia860_ownership')
+
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_raw = snakemake.params.indir
+    intfile = snakemake.output.intfile
+    outfile = snakemake.output.outfile
+
     # read-in parameters
     print('Reading in data...')
     vars_keep = ['utility_id', 'plant_code', 'generator_id', 'ownership_id', 'status', 
              'owner_name','city_owner', 'state_owner', 'zip_owner', 'percent_owned']
-    odf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR)
+    odf = readin_eia_years(path_raw, readin_dict, year_start)
     odf['utility_id'] = pd.to_numeric(odf.utility_id).astype('Int64')
     odf['plant_code'] = pd.to_numeric(odf.plant_code).astype('Int64')
     odf['ownership_id'] = pd.to_numeric(odf.ownership_id).astype('Int64')
     odf['zip_owner'] = pd.to_numeric(odf.zip_owner.astype(str).str.strip(), errors='coerce').astype('Int64')
     odf['percent_owned'] = pd.to_numeric(odf.percent_owned.astype(str).str.strip(), errors='coerce').astype('Float64').round(3)
     odf = odf.astype({'generator_id':str, 'status':str, 'owner_name':str, 'state_owner':str})
-    odf.to_parquet(PATH_INTERIM + 'eia860_ownership.parquet', index=False)
+    odf.to_parquet(intfile, index=False)
 
     # drop unnecessary columns
     newcols = ['year', 'sheet', 'file']
@@ -122,7 +134,7 @@ if __name__ == '__main__':
     odf.loc[~mask_o_is_u & (odf.percent_owned == 1.), 'ownership'] = 'W' # Wholly owned by an entity other than respondent
     odf.loc[~mask_o_is_u & (odf.percent_owned != 1.), 'ownership'] = 'J' # Jointly owned with another entity
     odf = odf.drop(columns=['pct_ownership_total', 'owner_count'])
-    odf.to_parquet(PATH_PROCESSED + 'eia860_ownership.parquet', index=False)
+    odf.to_parquet(outfile, index=False)
 
     print('Summarizing unique identifiers...')
     odf['pid'] = odf.utility_id.astype(str) + '.' + odf.plant_code.astype(str)

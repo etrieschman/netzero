@@ -2,7 +2,6 @@
 import numpy as np
 import pandas as pd
 
-from utils_transform import PATH_RAW, PATH_PROCESSED, START_YEAR, END_YEAR
 from utils_transform import readin_epa
 from utils_summ import summarize_id_counts_byyear
 
@@ -24,15 +23,30 @@ vars_coll_em = {
                   'heat_input_mmbtu']}
 
 if __name__ == '__main__':
+       if "snakemake" not in globals():
+              # readin mock snakemake
+              import sys, os
+              parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+              sys.path.insert(0, parent_dir)
+              from utils import mock_snakemake
+              snakemake = mock_snakemake('transform_epa')
+
+       year_start = snakemake.params.year_start
+       year_end = snakemake.params.year_end
+       indir_facility = snakemake.params.indir_facility
+       indir_emissions = snakemake.params.indir_emissions
+       outfile_facility = snakemake.output.outfile_facility
+       outfile_emissions = snakemake.output.outfile_emissions
+
        print('Reading in facility data...')
-       facdf = readin_epa(START_YEAR, END_YEAR, PATH_RAW + 'epa/facility/', vars_keep=vars_keep_fac)
+       facdf = readin_epa(year_start, year_end, indir_facility, vars_keep=vars_keep_fac)
        facdf = facdf.astype({'unit_id':str})
-       facdf.to_parquet(PATH_PROCESSED + 'epa_facility.parquet', index=False)
+       facdf.to_parquet(outfile_facility, index=False)
 
        print('Reading in daily emissions data...')
-       emdf = readin_epa(START_YEAR, END_YEAR, PATH_RAW + 'epa/emissions/daily/', vars_coll=vars_coll_em)
+       emdf = readin_epa(year_start, year_end, indir_emissions, vars_coll=vars_coll_em)
        emdf = emdf.astype({'unit_id':str})
-       emdf.to_parquet(PATH_PROCESSED + 'epa_emissions.parquet', index=False)
+       emdf.to_parquet(outfile_emissions, index=False)
 
        print('Summarizing unique IDs over time...')
        print('Facility data:')

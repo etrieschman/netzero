@@ -15,3 +15,7 @@ data/epa_ppr/*
 
 # results files
 results/*
+
+# snakefiles
+logs
+.snakemake

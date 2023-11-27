@@ -7,14 +7,12 @@ import pandas as pd
 from datetime import datetime
 from datetime import date
 from tqdm import tqdm
-import os, io
+from pathlib import Path
+import io
 
 from credentials import EPA_API_KEY # local user: save credentials.py file in code/extract with api key
 
 # Set API key
-START_YEAR = 2006
-END_YEAR = 2021
-PATH_EPA = '../data/raw/epa/'
 epa_params = {'api_key': EPA_API_KEY}
 
 # GET BULK FILES
@@ -52,7 +50,9 @@ def download_epa_files(url_base, filesToDownload, filename_prefix, parameters, s
                 # print(content.shape)
                 # content = content.astype({subset_col:'Float64'}).loc[content[subset_col] != 0.]
             # save file to disk in the data folder
-            content.to_csv(filename_prefix + fileObj['filename'])
+            filepath = Path(filename_prefix, fileObj['metadata']['year'])
+            filepath.mkdir(parents=True, exist_ok=True)
+            content.to_csv(filepath / fileObj['filename'])
             # with open(PATH_EPA + fileObj['filename'], 'wb') as f:
             #     f.write(content)
     else:
@@ -61,61 +61,58 @@ def download_epa_files(url_base, filesToDownload, filename_prefix, parameters, s
 
 # %%
 if __name__ == '__main__':
-      # The bulk data api allows you to download prepackaged data sets. There are two endpoints for obtaining bulk data.
-      # The first is the /bulk-files endpoint which returns metadata about files. This metadata includes the path to the
-      # file.  The second is the /easey/bulk-files endpoint which along with the path, returns the actual file.
-      URL_BASE = 'https://api.epa.gov/easey/bulk-files/'
-      URL_METADATA = "https://api.epa.gov/easey/camd-services/bulk-files"
-      # get files
-      print('Getting filepaths...')
-      bulkFiles = get_bulk_epa_files(URL_METADATA, epa_params)
-      # print out unique data types in the bulk data files
-      print('Unique data types in the bulk data files:')
-      print(set([fileObj['metadata']['dataType'] for fileObj in bulkFiles]))
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('extract_epa')
 
-      # DOWNLOAD FACILITY DATA
-      print('Downloading facility data')
-      facFiles = [fileObj for fileObj in bulkFiles if 
-                  (fileObj['metadata']['dataType']=='Facility')]
-      facFilters = {'minYear': START_YEAR}
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_epa_emissions = snakemake.output.epa_emissions
+    path_epa_facility = snakemake.output.epa_facility
 
-      filesToDownload = [fileObj for fileObj in facFiles if 
-                        ((int(fileObj['metadata']['year']) >= START_YEAR) & 
-                        (int(fileObj['metadata']['year']) <= END_YEAR))]
-      print('Number of files to download: ' + str(len(filesToDownload)))
-      download_epa_files(URL_BASE, filesToDownload, PATH_EPA + '/facility/', epa_params)
+    # The bulk data api allows you to download prepackaged data sets. There are two endpoints for obtaining bulk data.
+    # The first is the /bulk-files endpoint which returns metadata about files. This metadata includes the path to the
+    # file.  The second is the /easey/bulk-files endpoint which along with the path, returns the actual file.
+    URL_BASE = 'https://api.epa.gov/easey/bulk-files/'
+    URL_METADATA = "https://api.epa.gov/easey/camd-services/bulk-files"
+    # get files
+    print('Getting filepaths...')
+    bulkFiles = get_bulk_epa_files(URL_METADATA, epa_params)
+    # print out unique data types in the bulk data files
+    print('Unique data types in the bulk data files:')
+    print(set([fileObj['metadata']['dataType'] for fileObj in bulkFiles]))
 
-      # DOWNLOAD DAILY EMISSIONS DATA
-      emFiles = [fileObj for fileObj in bulkFiles if 
-                  (fileObj['metadata']['dataType']=='Emissions')]
-      print('Emission granularity:', 
-            set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
-      print('Downloading daily emissions data...')
-      emFiles = [fileObj for fileObj in emFiles if
-            (fileObj['metadata']['dataSubType']=='Daily')]
-      filesToDownload = [fileObj for fileObj in emFiles if 
-                        (('stateCode' in fileObj['metadata']) & 
-                        (int(fileObj['metadata']['year']) >= START_YEAR) & 
-                        (int(fileObj['metadata']['year']) <= END_YEAR))]
-      print('Number of files to download: '+ str(len(filesToDownload)))
-      download_epa_files(URL_BASE, filesToDownload, PATH_EPA + '/emissions/daily/', epa_params,
-                  subset_col='Operating Time Count')
+    # DOWNLOAD FACILITY DATA
+    print('Downloading facility data...')
+    facFiles = [fileObj for fileObj in bulkFiles if 
+                (fileObj['metadata']['dataType']=='Facility')]
+    facFilters = {'minYear': year_start}
 
-      # DOWNLOAD HOURLY EMISSIONS DATA
-    #   START_YEAR, END_YEAR = 2013, 2021
-    #   emFiles = [fileObj for fileObj in bulkFiles if 
-    #               (fileObj['metadata']['dataType']=='Emissions')]
-    #   print('Emission granularity:', 
-    #         set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
-    #   print('Downloading hourly emissions data...')  
-    #   emFiles = [fileObj for fileObj in emFiles if
-    #         (fileObj['metadata']['dataSubType']=='Hourly')]
-    #   filesToDownload = [fileObj for fileObj in emFiles if 
-    #                     (('stateCode' in fileObj['metadata']) & 
-    #                     (int(fileObj['metadata']['year']) >= START_YEAR) & 
-    #                     (int(fileObj['metadata']['year']) <= END_YEAR))]
-    #   print('Number of files to download: '+ str(len(filesToDownload)))
-    #   download_epa_files(URL_BASE, filesToDownload, PATH_EPA + '/emissions/hourly/', epa_params,
-    #               subset_col='Operating Time')
+    filesToDownload = [fileObj for fileObj in facFiles if 
+                    ((int(fileObj['metadata']['year']) >= year_start) & 
+                    (int(fileObj['metadata']['year']) <= year_end))]
+    print('Number of files to download: ' + str(len(filesToDownload)))
+    download_epa_files(URL_BASE, filesToDownload, path_epa_facility, epa_params)
+
+    # DOWNLOAD DAILY EMISSIONS DATA
+    emFiles = [fileObj for fileObj in bulkFiles if 
+                (fileObj['metadata']['dataType']=='Emissions')]
+    print('Emission granularity:', 
+        set(fileObj['metadata']['dataSubType'] for fileObj in emFiles))
+    print('Downloading daily emissions data...')
+    emFiles = [fileObj for fileObj in emFiles if
+        (fileObj['metadata']['dataSubType']=='Daily')]
+    filesToDownload = [fileObj for fileObj in emFiles if 
+                    (('stateCode' in fileObj['metadata']) & 
+                    (int(fileObj['metadata']['year']) >= year_start) & 
+                    (int(fileObj['metadata']['year']) <= year_end))]
+    print('Number of files to download: '+ str(len(filesToDownload)))
+    download_epa_files(URL_BASE, filesToDownload, path_epa_emissions, epa_params,
+                subset_col='Operating Time Count')
+
 
 # %%

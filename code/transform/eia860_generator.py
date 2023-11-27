@@ -4,8 +4,6 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-from utils_transform import (
-    PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
@@ -17,20 +15,20 @@ def make_dates(df, vm, vy):
 # %%
 # GENERATOR DATA
 readin_dict = {}
-readin_dict[END_YEAR] = {
+readin_dict[2021] = {
     'files':        [
-            f'{END_YEAR}/3_1_Generator_Y{str(END_YEAR)}.xlsx', 
-            f'{END_YEAR}/3_2_Wind_Y{END_YEAR}.xlsx', 
-            f'{END_YEAR}/3_3_Solar_Y{END_YEAR}.xlsx', 
-            f'{END_YEAR}/3_4_Energy_Storage_Y{END_YEAR}.xlsx',
-            f'{END_YEAR}/3_5_Multifuel_Y{END_YEAR}.xlsx'
+            f'{2021}/3_1_Generator_Y{2021}.xlsx', 
+            f'{2021}/3_2_Wind_Y{2021}.xlsx', 
+            f'{2021}/3_3_Solar_Y{2021}.xlsx', 
+            f'{2021}/3_4_Energy_Storage_Y{2021}.xlsx',
+            f'{2021}/3_5_Multifuel_Y{2021}.xlsx'
     ],
     'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  None
 }
 # cut corner: 2013/2016 is mostly the same
-for year in range(2013, END_YEAR+1):
-    readin_dict[year] = readin_dict[END_YEAR].copy()
+for year in range(2013, 2021+1):
+    readin_dict[year] = readin_dict[2021].copy()
     if year >= 2016:
         readin_dict[year]['files'] = [
                 f'{year}/3_1_Generator_Y{str(year)}.xlsx', 
@@ -133,8 +131,22 @@ vars_keep = vars_date + [
 
 # %%
 if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('transform_eia860_generator')
+
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_raw = snakemake.params.indir
+    intfile = snakemake.output.intfile
+    outfile = snakemake.output.outfile
+
     print('Reading in data...')
-    gdf = readin_eia_years(f'{PATH_RAW}eia/f860/', readin_dict, START_YEAR, keep_vars=None)
+    gdf = readin_eia_years(path_raw, readin_dict, year_start, keep_vars=None)
     # UPDATE DATA TYPES AND SAVE INTERMEDIATE
     gdf['utility_id'] = pd.to_numeric(gdf.utility_id, errors='coerce').astype('Int64')
     gdf = gdf.loc[gdf.utility_id.notna()]
@@ -148,7 +160,7 @@ if __name__ == '__main__':
     # fix datatypes
     col_str = gdf.columns[gdf.dtypes == 'object']
     gdf[col_str] = gdf[col_str].astype(str)
-    gdf.to_parquet(PATH_INTERIM + 'eia860_generator.parquet', index=False)
+    gdf.to_parquet(intfile, index=False)
 
     # restrict variables
     new_cols = ['year', 'file', 'sheet']
@@ -203,7 +215,7 @@ if __name__ == '__main__':
     
     # WRITE TO FILE
     print('Writing to file...')
-    gdf_dedup.to_parquet(PATH_PROCESSED + 'eia860_generator.parquet', index=False)
+    gdf_dedup.to_parquet(outfile, index=False)
     
     # summarize
     print('Summarizing unique IDs over time...')

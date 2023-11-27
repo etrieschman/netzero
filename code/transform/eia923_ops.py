@@ -5,8 +5,6 @@ from tqdm import tqdm
 import os
 import re
 
-from utils_transform import (
-    PATH_RAW, PATH_INTERIM, PATH_PROCESSED, START_YEAR, END_YEAR)
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
 
@@ -82,10 +80,23 @@ readin_dict[2006] = {
 
 # %%
 if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('transform_eia923_ops')
+
+    year_start = snakemake.params.year_start
+    year_end = snakemake.params.year_end
+    path_raw = snakemake.params.indir
+    outfile = snakemake.output.outfile
+
     # read-in parameters
     print('Reading in data...')
     vars_keep = []
-    df_raw = readin_eia_years(f'{PATH_RAW}eia/f923/', readin_dict, START_YEAR)
+    df_raw = readin_eia_years(path_raw, readin_dict, year_start)
     # drop state-level fuel increments
     df = df_raw.loc[(df_raw.plant_id != 99999) & (df_raw.plant_name != 'State-Fuel Level Increment')].copy()
     print(df.groupby(['year', 'sheet']).agg({'file':'count'}))
@@ -127,7 +138,7 @@ if __name__ == '__main__':
     df = (df
           .drop(columns=df.columns.intersection(['reserved1', 'reserved2', 'reserved_1', 'reserved_2', 'reserved']))
           .astype({'generator_id':str}))
-    df.to_parquet(PATH_PROCESSED + 'eia923_ops.parquet', index=False)
+    df.to_parquet(outfile, index=False)
     
     # transpose wide to long
     # print('Transposing wide to long...')
