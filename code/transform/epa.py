@@ -5,6 +5,8 @@ import pandas as pd
 from utils_transform import readin_epa
 from utils_summ import summarize_id_counts_byyear
 
+SHORT_TO_METRIC_TON = 0.907185
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 25)
 
@@ -46,6 +48,9 @@ if __name__ == '__main__':
        print('Reading in daily emissions data...')
        emdf = readin_epa(year_start, year_end, indir_emissions, vars_coll=vars_coll_em)
        emdf = emdf.astype({'unit_id':str})
+       emissions = ['so2', 'co2', 'nox']
+       for emission in emissions:
+              emdf[f'{emission}_mass_tons'] = emdf[f'{emission}_mass_short_tons'] * SHORT_TO_METRIC_TON
        emdf.to_parquet(outfile_emissions, index=False)
 
        print('Summarizing unique IDs over time...')

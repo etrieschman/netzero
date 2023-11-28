@@ -3,7 +3,7 @@ from os import path
 min_version('6.0')
 
 # --------------------------- Workflow constants --------------------------- #
-configfile: "config.yaml"
+# configfile: "config.yaml"
 
 PATH_DATA = 'data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
@@ -16,13 +16,22 @@ YEAR_END = 2021
 
 rule all:
     input:
-        PATH_PROCESSED + 'eia860_generator.parquet',
-        PATH_PROCESSED + 'eia860_plant.parquet',
-        PATH_PROCESSED + 'eia860_utility.parquet',
-        PATH_PROCESSED + 'eia860_ownership.parquet',
-        PATH_PROCESSED + 'eia923_ops.parquet',
-        PATH_PROCESSED + 'epa_facility.parquet',
-        PATH_PROCESSED + 'epa_emissions.parquet'
+        # TRANSFORM
+        # PATH_PROCESSED + 'eia860_generator.parquet',
+        # PATH_PROCESSED + 'eia860_plant.parquet',
+        # PATH_PROCESSED + 'eia860_utility.parquet',
+        # PATH_PROCESSED + 'eia860_ownership.parquet',
+        # PATH_PROCESSED + 'eia923_ops.parquet',
+        # PATH_PROCESSED + 'epa_facility.parquet',
+        # PATH_PROCESSED + 'epa_emissions.parquet',
+        # ALIGN
+        outfile_generation = PATH_PROCESSED + 'df_generation.parquet',
+        outfile_emissions = PATH_PROCESSED + 'df_emissions.parquet',
+        # ENTITIES
+        outfile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        outfile_plant = PATH_PROCESSED + 'df_plants.parquet',
+        outfile_util = PATH_PROCESSED + 'df_utilities.parquet',
+        outfile_own = PATH_PROCESSED + 'df_owners.parquet',
 
         
 # ============ EXTRACT EIA ============
@@ -162,4 +171,58 @@ rule transform_epa:
     script:
         path.join('code', 'transform', 'epa.py')
 
+
+# ============ ALIGN ENTITIES ============
+rule align_entities:
+    params:
+        indir = PATH_PROCESSED,
+        results_dir = PATH_RESULTS + 'align/entities/'
+    input:
+        infile_gen = PATH_PROCESSED + 'eia860_generator.parquet',
+        infile_plant = PATH_PROCESSED + 'eia860_plant.parquet',
+        infile_util = PATH_PROCESSED + 'eia860_utility.parquet',
+        infile_own = PATH_PROCESSED + 'eia860_ownership.parquet',
+    output:
+        outfile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        outfile_plant = PATH_PROCESSED + 'df_plants.parquet',
+        outfile_util = PATH_PROCESSED + 'df_utilities.parquet',
+        outfile_own = PATH_PROCESSED + 'df_owners.parquet'
+    log:
+        'logs/align_entities.log'
+    script:
+        path.join('code', 'align', 'entities.py')
+
+# ============ ALIGN GENERATION ============
+rule align_generation:
+    params:
+        indir = PATH_PROCESSED,
+        results_dir = PATH_RESULTS + 'align/generation/'
+    input:
+        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        infile_ops = PATH_PROCESSED + 'eia923_ops.parquet'
+    output:
+        outfile = PATH_PROCESSED + 'df_generation.parquet'
+    log:
+        'logs/align_generation.log'
+    script:
+        path.join('code', 'align', 'generation.py')
+
+
+# ============ ALIGN EMISSIONS ============
+rule align_emissions:
+    params:
+        indir = PATH_DATA,
+        results_dir = PATH_RESULTS + 'align/emissions/'
+    input:
+        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        infile_ops = PATH_PROCESSED + 'df_generation.parquet',
+        infile_epa_emissions = PATH_PROCESSED + 'epa_emissions.parquet',
+        crosswalk = PATH_DATA + 'resources/epa_eia_crosswalk.csv',
+        emission_factors = PATH_DATA + 'resources/se_emissions_factors.csv'
+    output:
+        outfile = PATH_PROCESSED + 'df_emissions.parquet'
+    log:
+        'logs/align_emissions.log'
+    script:
+        path.join('code', 'align', 'emissions.py')
 

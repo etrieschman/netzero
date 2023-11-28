@@ -2,31 +2,15 @@
 # SETUP
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 # global variables
-PATH_PROCESSED = '../data/processed/'
 DENOM, ROUND = 1e6, 2
 
 # options
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 150)
 
-# %%
-# LOAD DATASETS
-def load_datasets(path=PATH_PROCESSED):
-    gdf = pd.read_parquet(path + 'eia860_generator.parquet')
-    pdf = pd.read_parquet(path + 'eia860_plant.parquet')
-    udf = pd.read_parquet(path + 'eia860_utility.parquet')
-    odf = pd.read_parquet(path + 'eia860_ownership.parquet')
-
-    # unique ids
-    gdf['gid'] = gdf.plant_code.astype(str) + '_' + gdf.generator_id
-    odf['oid'] = odf.ownership_id.astype(str) + '_' + odf.plant_code.astype(str) + '_' + odf.generator_id
-
-    return gdf, pdf, udf, odf
-gdf, pdf, udf, odf = load_datasets()
-
-# %%
 # SAMPLE SELECTION
 def eia860_sample_selection(gdf, pdf, udf, odf):
     # 0. All
@@ -68,20 +52,16 @@ def eia860_sample_selection(gdf, pdf, udf, odf):
     summ.columns = pd.MultiIndex.from_tuples(summ.columns)
 
     # subset and return
-    gdf_sub = gdf.loc[np.array([gdf[step].values for step in steps]).all(0)]
-    pdf_sub = pdf.loc[np.array([pdf[step].values for step in steps]).all(0)]
-    udf_sub = udf.loc[np.array([udf[step].values for step in steps]).all(0)]
-    odf_sub = odf.loc[np.array([odf[step].values for step in steps]).all(0)]
+    gdf['in_sample'] = np.array([gdf[step].values for step in steps]).all(0)
+    pdf['in_sample'] = np.array([pdf[step].values for step in steps]).all(0)
+    udf['in_sample'] = np.array([udf[step].values for step in steps]).all(0)
+    odf['in_sample'] = np.array([odf[step].values for step in steps]).all(0)
     
-    return (gdf_sub, pdf_sub, udf_sub, odf_sub), summ
+    return (gdf, pdf, udf, odf), summ
 
-(gdf_sub, pdf_sub, udf_sub, odf_sub), summ = eia860_sample_selection(gdf, pdf, udf, odf)
-summ
 
-# %%
 # SIMPLIFY KEY COLUMNS: ENERGY SOURCE
 # categories from EIA: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
-vars_source = gdf_sub.columns[gdf_sub.columns.str.contains('source')]
 subcat_to_energy_source = {
     'natural_gas':['NG'],
     'coal':['ANT', 'BIT', 'LIG', 'SGC', 'SUB', 'WC', 'RC'],
@@ -103,21 +83,65 @@ cat_to_subcat = {
     'renewables':['wind', 'hydropower', 'solar', 'biomass', 'geothermal'],
     'other': ['waste_and_tires', 'biomass', 'batteries', 'hydrogen', 'purchased_steam', 'other']
 }
-source_to_subcat = {source:subcat for subcat, sources in subcat_to_energy_source.items() 
-                    for source in sources}
-subcat_to_cat = {subcat:cat for cat, subcats in cat_to_subcat.items() 
-                    for subcat in subcats}
-for var_source in vars_source:
-    gdf_sub[f'{var_source}_subcat'] = gdf_sub[var_source].map(source_to_subcat)
-    gdf_sub[f'{var_source}_cat'] = gdf_sub[f'{var_source}_subcat'].map(subcat_to_cat)
+
+def categorize_fuel(gdf, subcat_to_energy_source, cat_to_subcat):
+    vars_source = gdf.columns[gdf.columns.str.contains('source')]
+    source_to_subcat = {source:subcat for subcat, sources in subcat_to_energy_source.items() 
+                        for source in sources}
+    subcat_to_cat = {subcat:cat for cat, subcats in cat_to_subcat.items() 
+                        for subcat in subcats}
+    for var_source in vars_source:
+        gdf.loc[:,f'{var_source}_subcat'] = gdf[var_source].map(source_to_subcat)
+        gdf.loc[:,f'{var_source}_cat'] = gdf[f'{var_source}_subcat'].map(subcat_to_cat)
+    return gdf
+
+# %%
+def fill_column_missing_values(df, col):
+    # Sort the DataFrame
+    df[f'{col}_raw'] = df[col].copy()
+    df.sort_values(by=['plant_code', 'generator_id', 'year'], inplace=True)
+    df[col] = df.groupby(['plant_code', 'generator_id', 'year'])[col].ffill().bfill()
+    return df
 
 
 # %%
-# WRITE TO FILE
-gdf_sub.to_parquet(PATH_PROCESSED + 'df_generators.parquet')
-pdf_sub.to_parquet(PATH_PROCESSED + 'df_plants.parquet')
-udf_sub.to_parquet(PATH_PROCESSED + 'df_utilities.parquet')
-odf_sub.to_parquet(PATH_PROCESSED + 'df_owners.parquet')
+if __name__ == '__main__':
+    if "snakemake" not in globals():
+        # readin mock snakemake
+        import sys, os
+        parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, parent_dir)
+        from utils import mock_snakemake
+        snakemake = mock_snakemake('align_entities')
+    
+    results_dir = Path(snakemake.params.results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    # LOAD DATA
+    gdf = pd.read_parquet(snakemake.input.infile_gen)
+    pdf = pd.read_parquet(snakemake.input.infile_plant)
+    udf = pd.read_parquet(snakemake.input.infile_util)
+    odf = pd.read_parquet(snakemake.input.infile_own)
+    # unique ids
+    gdf['gid'] = gdf.plant_code.astype(str) + '_' + gdf.generator_id
+    odf['oid'] = odf.ownership_id.astype(str) + '_' + odf.plant_code.astype(str) + '_' + odf.generator_id
+
+    # SAMPLE SELECTION
+    (gdf_sub, pdf_sub, udf_sub, odf_sub), summ = eia860_sample_selection(gdf, pdf, udf, odf)
+    summ.to_csv(results_dir / 'sample_selection.csv')
+
+    # CLEAN ATTRIBUTES
+    gdf_sub = categorize_fuel(gdf_sub.copy(), subcat_to_energy_source, cat_to_subcat)
+    cols = ['nameplate_capacity_mw']
+    for col in cols:
+        gdf_sub = fill_column_missing_values(gdf_sub, col)
+    
+    # WRITE TO FILE
+    gdf_sub.to_parquet(snakemake.output.outfile_gen)
+    pdf_sub.to_parquet(snakemake.output.outfile_plant)
+    udf_sub.to_parquet(snakemake.output.outfile_util)
+    odf_sub.to_parquet(snakemake.output.outfile_own)
+
 
 # %%
 # GENERATOR RETIREMENT DATE
@@ -126,6 +150,7 @@ gdf_sub['dt_operation_end_from_latest_year'] = np.where(gdf_sub.dt_operation_end
 gdf_sub['dt_operation_end_from_latest_year'] = gdf_sub.groupby('gid')['dt_operation_end_from_latest_year'].transform('max')
 gdf_sub['dt_operation_end_from_latest_year'] = np.where(gdf_sub.dt_operation_end_from_latest_year == gdf_sub.year, gdf_sub.dt_operation_end, pd.NaT)
 gdf_sub['dt_operation_end_from_latest_year'] = pd.to_datetime(gdf_sub.groupby('gid')['dt_operation_end_from_latest_year'].transform('max'))
+
 
 # %%
 # Does non-retirement status appear after retirement status?
