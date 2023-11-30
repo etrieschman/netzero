@@ -67,6 +67,7 @@ subcat_to_energy_source = {
     'coal':['ANT', 'BIT', 'LIG', 'SGC', 'SUB', 'WC', 'RC'],
     'petroleum':['DFO', 'JF', 'KER', 'PC', 'PG', 'RFO', 'SGP', 'WO'],
     'other_gases':['BFG', 'OG'],
+    'nuclear':['NUC'],
     'wind':['WND'],
     'hydropower':['WAT'],
     'solar':['SUN'],
@@ -76,6 +77,7 @@ subcat_to_energy_source = {
     'batteries':['MWH'],
     'hydrogen':['H2'],
     'purchased_steam':['PUR'],
+    'other':['OTH']
 }
 cat_to_subcat = {
     'fossil_fuels':['natural_gas', 'coal', 'petroleum', 'other_gases'],
@@ -96,11 +98,11 @@ def categorize_fuel(gdf, subcat_to_energy_source, cat_to_subcat):
     return gdf
 
 # %%
-def fill_column_missing_values(df, col):
+def fill_column_missing_values(df, ids, col):
     # Sort the DataFrame
     df[f'{col}_raw'] = df[col].copy()
-    df.sort_values(by=['plant_code', 'generator_id', 'year'], inplace=True)
-    df[col] = df.groupby(['plant_code', 'generator_id', 'year'])[col].ffill().bfill()
+    df.sort_values(by=ids, inplace=True)
+    df[col] = df.groupby(ids)[col].ffill().bfill()
     return df
 
 
@@ -131,35 +133,21 @@ if __name__ == '__main__':
     summ.to_csv(results_dir / 'sample_selection.csv')
 
     # CLEAN ATTRIBUTES
+    # GENERATORS
     gdf_sub = categorize_fuel(gdf_sub.copy(), subcat_to_energy_source, cat_to_subcat)
-    cols = ['nameplate_capacity_mw']
+    cols = ['nameplate_capacity_mw', 'dt_operation_start']
+    ids = ['plant_code', 'generator_id', 'year']
     for col in cols:
-        gdf_sub = fill_column_missing_values(gdf_sub, col)
+        gdf_sub = fill_column_missing_values(gdf_sub, ids, col)
+    gdf_sub['age'] = gdf_sub.year - gdf_sub.dt_operation_start.dt.year
+    # PLANTS
+    cols = ['nerc_region']
+    ids = ['plant_code', 'year']
+    for col in cols:
+        pdf_sub = fill_column_missing_values(pdf_sub, ids, col)
     
     # WRITE TO FILE
     gdf_sub.to_parquet(snakemake.output.outfile_gen)
     pdf_sub.to_parquet(snakemake.output.outfile_plant)
     udf_sub.to_parquet(snakemake.output.outfile_util)
     odf_sub.to_parquet(snakemake.output.outfile_own)
-
-
-# %%
-# GENERATOR RETIREMENT DATE
-# 1. Take retirement date from latest available year
-gdf_sub['dt_operation_end_from_latest_year'] = np.where(gdf_sub.dt_operation_end.notna(), gdf_sub.year, np.nan)
-gdf_sub['dt_operation_end_from_latest_year'] = gdf_sub.groupby('gid')['dt_operation_end_from_latest_year'].transform('max')
-gdf_sub['dt_operation_end_from_latest_year'] = np.where(gdf_sub.dt_operation_end_from_latest_year == gdf_sub.year, gdf_sub.dt_operation_end, pd.NaT)
-gdf_sub['dt_operation_end_from_latest_year'] = pd.to_datetime(gdf_sub.groupby('gid')['dt_operation_end_from_latest_year'].transform('max'))
-
-
-# %%
-# Does non-retirement status appear after retirement status?
-gdf_sub.loc[(gdf_sub.status == 'RE') & 
-            (gdf_sub.dt_operation_end_from_latest_year.dt.year > gdf_sub.year)]
-# Yes! Look at case study:
-# gdf_sub.loc[gdf_sub.gid == '1553_3']
-# supported by Wiki: https://en.wikipedia.org/wiki/Gould_Street_Generating_Station
-
-
-# %%
-# TODO: Align EIA entity properties (ones that persist over time)
