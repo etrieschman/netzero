@@ -241,3 +241,5 @@ for state in states:
     ax[0].set_title(f'EGU status in {state}, by fuel type')
     plt.savefig(PATH_RESULTS + f'fig_egu_status_in_{state}.png', dpi=300, bbox_inches='tight')
 
+
+# %%
