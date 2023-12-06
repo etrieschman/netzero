@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import camelot
 
+import os
+os.environ['GS_LIB'] = '/usr/local/Cellar/ghostscript/10.02.1/lib/libgs.dylib'
+import ghostscript
+
 
 temppath = '../data/temp/'
 
@@ -12,8 +16,11 @@ pd.set_option('display.max_rows', 100)
 
 
 # %%
-tables = camelot.read_pdf(temppath + 'appendix-b-dec-and-dep-system-information.pdf')
-tables
+tables = camelot.read_pdf(temppath + 'appendix-b-dec-and-dep-system-information.pdf', pages='18-19',
+                          split_text=True, flavor='lattice')
+
+# %%
+tables[0].df
 
 # %%
 # CARBON PRICE

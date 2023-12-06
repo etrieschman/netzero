@@ -104,7 +104,7 @@ def align_eia923_to_eia860(gdf, opsgendf, opsppdf):
     summ_pp.columns = ['n', 'twh']
     summ_pp.twh /= DENOM
     summ_pp['cat'] = 'plant_part'
-    summ = pd.concat([summ_g, summ_pp], axis=0)
+    summ = pd.concat([summ_g, summ_pp], names=['year', 'merge'], axis=0)
 
     # drop right-only merges
     ggp = ggp.loc[(ggp.merge_po != 'right_only') & (ggp.merge_go != 'right_only')]
@@ -255,5 +255,5 @@ for cat in unique_cats:
 # %%
 # READOUT FOR ALIGNSUMM
 temp = alignsumm.reset_index()
-temp.loc[temp.merge_go != 'left_only'].pivot(index=['year', 'merge_go'], columns='cat')
+temp.loc[temp.level_1 != 'left_only'].pivot(index=['year', 'level_1'], columns='cat')
 # %%

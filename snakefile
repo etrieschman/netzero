@@ -1,5 +1,6 @@
 from snakemake.utils import min_version
 from os import path
+from pathlib import Path
 min_version('6.0')
 
 # --------------------------- Workflow constants --------------------------- #
@@ -9,7 +10,7 @@ PATH_DATA = 'data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 PATH_INTERIM = PATH_DATA + 'interim/'
 PATH_RESULTS = 'results/'
-YEAR_START = 2006
+YEAR_START = 2013
 YEAR_END = 2021
 
 # --------------------------- Rules --------------------------- #
@@ -54,6 +55,8 @@ rule extract_eia:
         "logs/extract_eia.log"
     script:
         path.join('code', 'extract', 'eia.py')
+        # Path('code/extract/eia.py')
+        # 'code/extract/eia.py'
 
 # ============ EXTRACT EPA ============
 rule extract_epa:
@@ -69,6 +72,8 @@ rule extract_epa:
         "logs/extract_epa.log"
     script:
         path.join('code', 'extract', 'epa.py')
+        # Path('code/extract/epa.py')
+        # 'code/extract/epa.py'
 
 # ============ TRANSFORM EIA860 GENERATOR ============
 rule transform_eia860_generator:

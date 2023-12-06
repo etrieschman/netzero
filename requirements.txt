@@ -1,7 +1,6 @@
 numpy==1.25.2
 pandas==2.1.0
 matplotlib==3.7.2
-matplotlib-venn==0.11.9
 seaborn==0.13.0
 nbformat==5.9.2
 requests==2.31.0
@@ -9,9 +8,19 @@ bs4==0.0.1
 openpyxl==3.1.2
 xlrd==2.0.1
 networkx==3.2.1
+camelot-py==0.11.0
+tabula-py==2.9.0
+snakemake==7.32.4
+
+# dependencies
+# opencv-python==4.8.1.78
+pyarrow==14.0.1
+jpype1==1.4.1
+# ghostscript==0.7
 
 # catalystcoop.pudl==0.6.0
-zenodo_get==1.4.0
+# zenodo_get==1.4.0
+
 
 tqdm
 ipykernel==6.25.1

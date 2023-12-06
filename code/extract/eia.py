@@ -5,6 +5,7 @@ from tqdm import tqdm
 import requests, zipfile, urllib
 from io import BytesIO
 from bs4 import BeautifulSoup
+from pathlib import Path
 
 # %%
 # SCRAPE ALL FILEPATHS THAT END IN SPECIFIC SUFFIX
@@ -26,14 +27,14 @@ def download_eia_zip(url, path_save):
     zip = zipfile.ZipFile(BytesIO(req.content))
     files = zip.namelist()
     downfiles = [f for f in files if f.lower().endswith(('.xls','.xlsx'))]
-    path = f'{path_save}' if downfiles[0].startswith(f'{year}/') else f'{path_save}/{year}/'
+    path = path_save if downfiles[0].startswith(f'{year}/') else path_save / f'{year}'
     zip.extractall(path, members=downfiles)
 
 # DOWNLOAD A DIRECT FILE
 def download_eia_file(url, path_save):
     fn = url.split('/')[-1]
     req = requests.get(url)
-    with open(path_save + fn, 'wb') as output:
+    with open(path_save / fn, 'wb') as output:
         output.write(req.content)
 
 
@@ -43,15 +44,20 @@ if __name__ == '__main__':
         # readin mock snakemake
         import sys, os
         parent_dir = os.path.dirname(os.path.realpath(__file__))
+        parent_dir = os.path.pardir
         sys.path.insert(0, parent_dir)
         from utils import mock_snakemake
         snakemake = mock_snakemake('extract_eia')
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_eia_f860 = snakemake.output.eia_f860
-    path_eia_f861 = snakemake.output.eia_f861
-    path_eia_f923 = snakemake.output.eia_f923
+    path_eia_f860 = Path(snakemake.output.eia_f860)
+    path_eia_f860.mkdir(parents=True, exist_ok=True)
+    path_eia_f861 = Path(snakemake.output.eia_f861)
+    path_eia_f861.mkdir(parents=True, exist_ok=True)
+    path_eia_f923 = Path(snakemake.output.eia_f923)
+    path_eia_f923.mkdir(parents=True, exist_ok=True)
+
 
     # DOWNLOAD UTILITY-LEVEL DATA
     print('Downloading EIA 861 data')
@@ -83,3 +89,5 @@ if __name__ == '__main__':
     #         continue
     #     download_eia_file(f, PATH_EIA + 'emissions/')
 
+
+# %%

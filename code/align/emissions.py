@@ -139,7 +139,7 @@ def allocate_emissions_to_generators(g_x_e, vars_em):
     gdf_e.loc[~gdf_e.is_allocated, [f'{var}_gen' for var in vars_em]] = pd.NA
     
     # 4. Check results
-    summ_all = g_x_e[['year', 'camd_uid', 'is_allocated'] + vars_em].drop_duplicates().groupby(['year', 'is_allocated']).sum()/1e6
+    summ_all = g_x_e[['year', 'camd_uid', 'is_allocated'] + vars_em].drop_duplicates().drop(columns='camd_uid').groupby(['year', 'is_allocated']).sum()/1e6
         
     return gdf_e, summ_all
 
