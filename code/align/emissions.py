@@ -255,3 +255,9 @@ summ_all[summ_all.columns[~summ_all.columns.str.endswith(('_xw', '_xw_pct'))]]
 # %%
 summ_compare
 # %%
+# What do EPA facilities that are unlinked look like?
+epa_u = g_x_e.loc[g_x_e.merge_e == 'left_only']
+fac = pd.read_parquet(os.path.dirname(snakemake.input.infile_gen) + '/epa_facility.parquet')
+epa_uf = pd.merge(left=epa_u, right=fac, how='left', on=['facility_id', 'unit_id', 'year'], indicator=True)
+epa_uf.source_category.value_counts(dropna=False)
+# %%

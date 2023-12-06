@@ -16,6 +16,8 @@ snakemake==7.32.4
 # opencv-python==4.8.1.78
 pyarrow==14.0.1
 jpype1==1.4.1
+opencv-python==4.8.1.78
+ghostscript==0.7
 # ghostscript==0.7
 
 # catalystcoop.pudl==0.6.0

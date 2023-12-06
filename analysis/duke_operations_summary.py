@@ -2,7 +2,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import geopandas as gpd
+from tqdm import tqdm
 
 # global variables
 PATH_DATA = '../data/'
@@ -178,10 +180,6 @@ plt.show()
 # %%
 # STATUS OVER TIME
 # plot
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import numpy as np
-
 # Initialize a figure
 def plot_egu_status(df, status_mapping, ax, ylab):
     pivot_df = df.pivot_table(index='gid', columns='year', values='status_code', fill_value=None).astype('Int64')
@@ -197,7 +195,7 @@ def plot_egu_status(df, status_mapping, ax, ylab):
         prev_status = data.iloc[0]
         
         # Iterate through each year for the EGU
-        for year, status in data.iteritems():
+        for year, status in data.items():
             # Skip if data is missing
             if pd.isna(prev_status):
                 prev_year = year
@@ -231,7 +229,7 @@ dgge['status_code'] = dgge.status.map(status_mapping)
 FIGSIZE=3
 states = dgge.state_plant.unique()
 states = ['NC', 'SC', 'FL', 'IN', 'OH', 'KY']
-for state in states:
+for state in tqdm(states):
     dgge_state = dgge.loc[dgge.state_plant == state]
     fuels = dgge_state.energy_source_1_subcat.unique()
     fig, ax = plt.subplots(nrows=len(fuels), sharex=True, figsize=(3*FIGSIZE, len(fuels)*FIGSIZE))
