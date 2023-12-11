@@ -10,7 +10,7 @@ PATH_DATA = 'data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 PATH_INTERIM = PATH_DATA + 'interim/'
 PATH_RESULTS = 'results/'
-YEAR_START = 2013
+YEAR_START = 2006
 YEAR_END = 2021
 
 # --------------------------- Rules --------------------------- #

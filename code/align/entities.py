@@ -87,7 +87,7 @@ cat_to_subcat = {
 }
 
 def categorize_fuel(gdf, subcat_to_energy_source, cat_to_subcat):
-    vars_source = gdf.columns[gdf.columns.str.contains('source')]
+    vars_source = gdf.columns[gdf.columns.str.contains('source') & ~gdf.columns.str.contains('raw')]
     source_to_subcat = {source:subcat for subcat, sources in subcat_to_energy_source.items() 
                         for source in sources}
     subcat_to_cat = {subcat:cat for cat, subcats in cat_to_subcat.items() 
@@ -134,20 +134,23 @@ if __name__ == '__main__':
 
     # CLEAN ATTRIBUTES
     # GENERATORS
-    gdf_sub = categorize_fuel(gdf_sub.copy(), subcat_to_energy_source, cat_to_subcat)
     cols = ['nameplate_capacity_mw', 'dt_operation_start']
+    cols += gdf_sub.columns[gdf.columns.str.contains('source')].to_list()
     ids = ['plant_code', 'generator_id', 'year']
     for col in cols:
         gdf_sub = fill_column_missing_values(gdf_sub, ids, col)
     gdf_sub['age'] = gdf_sub.year - gdf_sub.dt_operation_start.dt.year
     # PLANTS
-    cols = ['nerc_region']
+    cols = ['nerc_region', 'latitude', 'longitude']
     ids = ['plant_code', 'year']
     for col in cols:
         pdf_sub = fill_column_missing_values(pdf_sub, ids, col)
+    # fuel
+    gdf_sub = categorize_fuel(gdf_sub, subcat_to_energy_source, cat_to_subcat)
     
     # WRITE TO FILE
     gdf_sub.to_parquet(snakemake.output.outfile_gen)
     pdf_sub.to_parquet(snakemake.output.outfile_plant)
     udf_sub.to_parquet(snakemake.output.outfile_util)
     odf_sub.to_parquet(snakemake.output.outfile_own)
+# %%

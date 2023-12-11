@@ -72,7 +72,7 @@ dgge_op = dgge.loc[dgge.is_operating | dgge.is_operating_status]
 
 # %%
 # TOPLINE OPERATIONS TABLE
-groupers = [['state_plant', 'year'], ['energy_source_1', 'year'], ['year']]
+groupers = [['energy_source_1_subcat','state_plant', 'year'], ['state_plant', 'year'], ['energy_source_1_subcat', 'year'], ['year']]
 summ_df = pd.DataFrame()
 for group in groupers:
     df = (dgge_op.groupby(group)
@@ -84,7 +84,7 @@ for group in groupers:
             .reset_index())
     summ_df = pd.concat([df, summ_df], ignore_index=True)
 
-vars_id = [('year',''), ('energy_source_1',''), ('state_plant','')]
+vars_id = [('year',''), ('energy_source_1_subcat',''), ('state_plant','')]
 vars_other = [col for col in summ_df.columns if col not in vars_id]
 summ_df[vars_id] = summ_df[vars_id].fillna('TOTAL')
 summ_df[vars_id + vars_other].to_csv(PATH_RESULTS + 'summary.csv', index=False)
@@ -92,52 +92,54 @@ summ_df[vars_id + vars_other].to_csv(PATH_RESULTS + 'summary.csv', index=False)
 # %%
 # GENERATION MIX BY STATE
 import seaborn as sns
-var = 'net_gen_tot_an'
-show_pct = True
 options = {
     'nameplate_capacity_mw':{'units':'MW', 'denom':1},
     'net_gen_tot_an':{'units':'TWh', 'denom':1e6}
 }
-gm = (dgge_op
-      .groupby(['year', 'state_plant', 'energy_source_1_subcat'])
-      .agg({var:'sum'}) / options[var]['denom']).reset_index()
-gm[f'{var}_state'] = gm.groupby(['year', 'state_plant'])[var].transform('sum')
-gm[f'{var}_pct'] = gm[var] / gm[f'{var}_state']
 
-# Pivot the data to get energy type breakdown for each state by year
-var_summ = var if not show_pct else f'{var}_pct'
-var_summ_unit = 'pct' if show_pct else options[var]['units']
-gmt = gm.pivot_table(
-    values=var_summ, index=['state_plant', 'year'], 
-    columns='energy_source_1_subcat', aggfunc='sum')
-# Fill missing values with 0 (if any)
-gmt = gmt.fillna(0).reset_index()
-# Now we plot a stacked bar chart for each state
-states = gm['state_plant'].unique()
-states = ['NC', 'SC', 'FL', 'IN', 'OH', 'KY']
+for var in ['net_gen_tot_an', 'nameplate_capacity_mw']:
+    for show_pct in [True, False]:
+        gm = (dgge_op
+            .groupby(['year', 'state_plant', 'energy_source_1_subcat'])
+            .agg({var:'sum'}) / options[var]['denom']).reset_index()
+        gm[f'{var}_state'] = gm.groupby(['year', 'state_plant'])[var].transform('sum')
+        gm[f'{var}_pct'] = gm[var] / gm[f'{var}_state']
 
-# Set up the matplotlib figure and axes
-figscale=5
-ncols=2
-fig, axes = plt.subplots(
-    nrows=len(states)//ncols, ncols=ncols, figsize=(5*ncols, 4*len(states)//ncols), sharex=True, sharey=True)
-# Loop through each state and create a stacked bar chart
-for ax, state in zip(axes.flatten(), states):
-    state_data = gmt.loc[gmt.state_plant == state]
-    state_data.plot(kind='bar', x='year', legend=False, stacked=True, cmap='tab20', ax=ax, title=f'{var} in {state}')
-    ax.set_xlabel('Year')
-    ax.set_ylabel(f'{var_summ_unit}')
-axes[2,1].legend(title='Energy Type')
+        # Pivot the data to get energy type breakdown for each state by year
+        var_summ = var if not show_pct else f'{var}_pct'
+        var_summ_unit = 'pct' if show_pct else options[var]['units']
+        gmt = gm.pivot_table(
+            values=var_summ, index=['state_plant', 'year'], 
+            columns='energy_source_1_subcat', aggfunc='sum')
+        # Fill missing values with 0 (if any)
+        gmt = gmt.fillna(0).reset_index()
+        # Now we plot a stacked bar chart for each state
+        states = gm['state_plant'].unique()
+        states = ['NC', 'SC', 'FL', 'IN', 'OH', 'KY']
 
-# Adjust the layout to prevent overlap
-plt.tight_layout()
-plt.show()
+        # Set up the matplotlib figure and axes
+        figscale=5
+        ncols=2
+        fig, axes = plt.subplots(
+            nrows=len(states)//ncols, ncols=ncols, figsize=(5*ncols, 4*len(states)//ncols), sharex=True, sharey=True)
+        # Loop through each state and create a stacked bar chart
+        for ax, state in zip(axes.flatten(), states):
+            state_data = gmt.loc[gmt.state_plant == state]
+            state_data.plot(kind='bar', x='year', legend=False, stacked=True, cmap='tab20', ax=ax, title=f'{var} in {state}')
+            ax.set_xlabel('Year')
+            ax.set_ylabel(f'{var_summ_unit}')
+        axes[2,1].legend(title='Energy Type')
+
+        # Adjust the layout to prevent overlap
+        plt.tight_layout()
+        plt.savefig(PATH_RESULTS + f'fig_{var}_pct{show_pct}.png', dpi=300, bbox_inches='tight')
+        plt.show()
 
 
 
 # %%
 # MAP OF OPERATIONS
-year = 2018
+year = 2021
 
 # Read in the US states shapefile using GeoPandas
 gdf_states = gpd.read_file(PATH_DATA + 'resources/cb_state_boundaries/cb_2018_us_state_20m.shp')
@@ -164,13 +166,13 @@ plt.show()
 # MAP FUEL TYPES
 dgge_map = (dgge_op
             .loc[(dgge_op.year == year) & (dgge_op.net_gen_tot_an > 0),
-                 ['latitude', 'longitude', 'energy_source_1']]
+                 ['latitude', 'longitude', 'energy_source_1_subcat']]
              .drop_duplicates().reset_index(drop=True))
 gdf = gpd.GeoDataFrame(dgge_map, geometry=gpd.points_from_xy(dgge_map.longitude, dgge_map.latitude))
 fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 gdf_states.geometry.plot(ax=ax, linewidth=0.8, color='lightgrey', edgecolor='black')
 gdf.plot(ax=ax, 
-         column='energy_source_1', s=250, cmap='tab10', 
+         column='energy_source_1_subcat', s=250, cmap='tab10', 
          legend=True,
          alpha=0.75)
 plt.xlim((-107, -75))
@@ -193,7 +195,6 @@ def plot_egu_status(df, status_mapping, ax, ylab):
         # Previous year and status to start the first segment
         prev_year = data.index[0]
         prev_status = data.iloc[0]
-        
         # Iterate through each year for the EGU
         for year, status in data.items():
             # Skip if data is missing
@@ -203,7 +204,6 @@ def plot_egu_status(df, status_mapping, ax, ylab):
                 continue
             # Plot the segment from the previous year to the current year
             ax.plot([prev_year, year], [i, i], lw=1, c=colors[prev_status])
-
             # Update previous year and status
             prev_year = year
             prev_status = status
@@ -222,7 +222,7 @@ def plot_egu_status(df, status_mapping, ax, ylab):
 
 # Create a mapping for the statuses
 
-status_order = ['OP', 'SB', 'OA', 'P', 'L', 'T', 'U', 'V', 'IP', 'CN', 'RE']
+status_order = ['OP', 'SB', 'OA', 'OS', 'TS', 'V', 'U', 'T', 'L', 'P', 'IP', 'CN', 'RE']
 status_mapping = {status:i for i, status in enumerate(status_order)}
 dgge['status_code'] = dgge.status.map(status_mapping)
 
