@@ -2,6 +2,9 @@
 # SETUP
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from utils import format_sumpct_col, format_npct_col, format_mstd_col, format_iqr_col
+from utils import sample_summ
 
 # global variables
 PATH_PROCESSED = '../data/processed/'
@@ -31,89 +34,54 @@ gdf.loc[:,'co2_mass_tons_diff'] = gdf.co2_mass_tons_gen - gdf.co2_mass_tons_gen_
 # SUBSET SAMPLE
 gdf_sub = gdf.loc[gdf.in_sample].copy()
 
+# %%
+ROUND = 3
+summdict = {
+    'age':{
+        'params':{'round':ROUND, 'denom':1},
+        'aggfns':[format_iqr_col, format_mstd_col]
+    },
+    'nameplate_capacity_mw':{
+        'params':{'round':ROUND, 'denom':1},
+        'aggfns':[format_iqr_col, format_mstd_col, format_sumpct_col]
+    }, 
+    'co2_mass_tons_gen':{
+        'params':{'round':ROUND, 'denom':1e6},
+        'aggfns':[format_iqr_col, format_mstd_col, format_sumpct_col]
+    }, 
+    'co2_mass_tons_gen_923':{
+        'params':{'round':ROUND, 'denom':1e6},
+        'aggfns':[format_iqr_col, format_mstd_col, format_sumpct_col]
+    },
+    'plant_code':{
+        'params':{'round':ROUND, 'denom':1},
+        'aggfns':[format_npct_col]
+    }, 
+    'gid':{
+        'params':{'round':ROUND, 'denom':1},
+        'aggfns':[format_npct_col]
+    }
+}
 
 
 # %%
 # SUMMARIZE BY CATEGORY
-# HELPER FUNCTIONS
-def format_aggpct_col(grouper, col, agg, params):
-    summ = grouper[[col]].agg(agg) / params['denom']
-    pct = (
-        summ[col] / 
-        summ.reset_index().groupby(cat, dropna=False)[col].transform('sum').values * 100 )
-    out = pd.Series(
-        summ[col].round(params['round']).astype(str).str.replace('nan', '-') + ' (' + 
-        pct.round(params['round']).astype(str).str.replace('nan', '-') + '%)', name=f'{col}_{agg}_pct')
-    return out.to_frame()
-
-def format_mstd_col(grouper, col, params):
-    summ_m = grouper[[col]].mean() / params['denom']
-    summ_s = grouper[[col]].std() / params['denom']
-    out = pd.Series(
-        summ_m[col].round(params['round']).astype(str).str.replace('nan', '-') + '±' + 
-        summ_s[col].round(params['round']).astype(str).str.replace('nan', '-'), name=f'{col}_mean_std')
-    return out.to_frame()
-
-def format_iqr_col(grouper, col, params):
-    summ_l = grouper[[col]].quantile(0.25) / params['denom']
-    summ_h = grouper[[col]].quantile(0.75) / params['denom']
-    out = pd.Series(
-        '[' + summ_l[col].round(params['round']).astype(str).str.replace('nan', '') + '-' + 
-        summ_h[col].round(params['round']).astype(str).str.replace('nan', '') + ']', name=f'{col}_iqr')
-    return out.to_frame()
-    
-
-# SUMMARIZE BY CATEGORY
 cats = [['year'], ['energy_source_1_cat', 'energy_source_1_subcat', 'year'], ['nerc_region', 'year']]
 cats.reverse()
-# cats = [['year', 'energy_source_1_cat']]
 summ = pd.DataFrame()
 
 for cat in cats:
-    grouper = gdf_sub.groupby(['em_cat'] + cat, dropna=False)
-    summ_cat = pd.DataFrame()
-    
-    # get age
-    cols = ['age']
-    params = {'round':ROUND, 'denom':1}
-    for col in cols:
-        summ_cat = pd.concat([format_iqr_col(grouper, col, params), summ_cat], axis=1)
-        summ_cat = pd.concat([format_mstd_col(grouper, col, params), summ_cat], axis=1)
-        
-    # get capacity
-    cols = ['nameplate_capacity_mw']
-    params = {'round':ROUND, 'denom':1}
-    for col in cols:        
-        summ_cat = pd.concat([format_iqr_col(grouper, col, params), summ_cat], axis=1)
-        summ_cat = pd.concat([format_mstd_col(grouper, col, params), summ_cat], axis=1)
-        summ_cat = pd.concat([format_aggpct_col(grouper, col, 'sum', params), summ_cat], axis=1)
-
-    # get emissions
-    cols = ['co2_mass_tons_diff', 'co2_mass_tons_gen', 'co2_mass_tons_gen_923']
-    params = {'round':ROUND, 'denom':1e6}
-    for col in cols:        
-        summ_cat = pd.concat([format_iqr_col(grouper, col, params), summ_cat], axis=1)
-        summ_cat = pd.concat([format_mstd_col(grouper, col, params), summ_cat], axis=1)
-        summ_cat = pd.concat([format_aggpct_col(grouper, col, 'sum', params), summ_cat], axis=1)
-
-    # get counts
-    cols = ['plant_code', 'gid']
-    params = {'round':ROUND, 'denom':1}
-    for col in cols:
-        summ_cat = pd.concat([format_aggpct_col(grouper, col, 'nunique', params), summ_cat], axis=1)
-
+    summ_cat = sample_summ(gdf_sub, cat=cat+['em_cat'], summdict=summdict)
     summ = pd.concat([summ_cat.reset_index(), summ], axis=0)
 summ = summ.fillna('total')
 cols_leading = ['year', 'energy_source_1_cat', 'energy_source_1_subcat', 'nerc_region']
 cols_tailing = [col for col in summ.columns if col not in cols_leading]
 summ = summ[cols_leading + cols_tailing]
 summ.to_csv(PATH_RESULTS + 'df_compare_emissions_eia_epa.csv', index=False)
-# %%
+
 
 # %%
-gdf_sub
-# %%
-import matplotlib.pyplot as plt
+# PLOT
 DENOM = 1e6
 FIGSIZE = 2
 var_cat = 'energy_source_1_subcat'

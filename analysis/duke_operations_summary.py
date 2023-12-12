@@ -80,7 +80,8 @@ for group in groupers:
             'nameplate_capacity_mw':'sum', 'co2_mass_tons_gen':'sum',
             'co2_mass_tons_gen_923':'sum',
             'net_gen_tot_an':'sum',
-            'capacity_factor':['mean', 'std']})
+            'tot_hr_mmbtu_per_unit_an':['mean', 'std'],
+            'capacity_factor':['mean', 'std']}, weights='tot_mmbtu_tot_an')
             .reset_index())
     summ_df = pd.concat([df, summ_df], ignore_index=True)
 
@@ -181,7 +182,6 @@ plt.show()
 
 # %%
 # STATUS OVER TIME
-# plot
 # Initialize a figure
 def plot_egu_status(df, status_mapping, ax, ylab):
     pivot_df = df.pivot_table(index='gid', columns='year', values='status_code', fill_value=None).astype('Int64')
@@ -239,5 +239,22 @@ for state in tqdm(states):
     ax[0].set_title(f'EGU status in {state}, by fuel type')
     plt.savefig(PATH_RESULTS + f'fig_egu_status_in_{state}.png', dpi=300, bbox_inches='tight')
 
+
+
+# %%
+# plot heatrates
+for state in tqdm(states):
+    dgge_state = dgge.loc[dgge.state_plant == state]
+    fuels = {'natural_gas', 'coal', 'petroleum', 'waste_and_tires'}
+    dgge_fuels = set(dgge_state.energy_source_1_subcat.drop_duplicates().values)
+    dgge_fuels = fuels.intersection(dgge_fuels)
+    fig, ax = plt.subplots(nrows=len(dgge_fuels), sharex=True, figsize=(3*FIGSIZE, len(dgge_fuels)*FIGSIZE))
+    for i, fuel in enumerate(dgge_fuels):
+        df = dgge_state.loc[(dgge_state.energy_source_1_subcat == fuel)]
+        dfp = df.pivot(index='gid', columns='year', values='tot_hr_mmbtu_per_unit_an')
+        dfp.T.plot(legend=False, alpha=0.75, ax=ax[i])
+        ax[i].set_ylabel(fuel)
+    ax[0].set_title(f'EGU heatrate in {state}, by fuel type')
+    plt.savefig(PATH_RESULTS + f'fig_egu_heatrate_in_{state}.png', dpi=300, bbox_inches='tight')
 
 # %%

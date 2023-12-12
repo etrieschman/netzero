@@ -1,5 +1,6 @@
 # %%
 # SET UP
+import numpy as np
 import pandas as pd
 from pathlib import Path
 
@@ -226,12 +227,10 @@ if __name__ == '__main__':
     ggp, allsumm = allocate_eia923_operations(ggp)
     allsumm.to_csv(results_dir / 'df_summ_allocate.csv')
 
-    # summarize 2021 by category to spotcheck
-    # COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
-    # year = 2021
-    # catsumm = ggp.loc[ggp.year == year].groupby(['energy_source_1_cat', 'energy_source_1_subcat'])[['net_gen_tot_an']].sum() / 1e6
-    # catsumm['ratio'] = catsumm.net_gen_tot_an / catsumm.net_gen_tot_an.sum()
-    # catsumm.to_csv(results_dir / f'df_summ_{year}_totals.csv')
+    # calculate heatrate
+    ggp['tot_hr_mmbtu_per_unit_an'] = np.where(
+        ggp.quantity_tot_an.notna() & (ggp.quantity_tot_an != 0),
+        ggp.tot_mmbtu_tot_an / ggp.quantity_tot_an, np.nan)
 
     # write to file
     vars_keep = ['year', 'utility_id', 'plant_code', 'generator_id', 
@@ -239,7 +238,7 @@ if __name__ == '__main__':
                 #  'energy_source_1', 'energy_source_1_subcat', 'energy_source_1_cat',
                 # 'reported_prime_mover', 'reported_fuel_type_code',
                 'net_gen_tot_an', 'quantity_tot_an', 'elec_quantity_tot_an', 
-                'tot_mmbtu_tot_an', 'elec_mmbtu_tot_an',
+                'tot_mmbtu_tot_an', 'elec_mmbtu_tot_an', 'tot_hr_mmbtu_per_unit_an',
                 'pct_generation', 'pct_allocation']
     vars_raw = ['net_gen_tot_an_go', 'quantity_tot_an_po', 
                 'elec_quantity_tot_an_po', 'tot_mmbtu_tot_an_po', 
@@ -257,3 +256,9 @@ for cat in unique_cats:
 temp = alignsumm.reset_index()
 temp.loc[temp.level_1 != 'left_only'].pivot(index=['year', 'level_1'], columns='cat')
 # %%
+# summarize 2021 by category to spotcheck
+# COMPARE GENRATION TO EIA REPORTS: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
+# year = 2021
+# catsumm = ggp.loc[ggp.year == year].groupby(['energy_source_1_cat', 'energy_source_1_subcat'])[['net_gen_tot_an']].sum() / 1e6
+# catsumm['ratio'] = catsumm.net_gen_tot_an / catsumm.net_gen_tot_an.sum()
+# catsumm.to_csv(results_dir / f'df_summ_{year}_totals.csv')
