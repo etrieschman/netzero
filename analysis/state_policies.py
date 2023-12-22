@@ -106,7 +106,7 @@ sectors = ['investor-owned utility', 'municipal utilities', 'cooperative utiliti
 for sector in sectors:
     rps[sector] = rps.applicable_sectors.str.lower().str.contains(sector)
 rps.drop(columns='applicable_sectors', inplace=True)
-rps.to_csv(temppath + 'spd_rps.csv', index=False)
+rps.to_csv(temppath + 'spd_rps_raw.csv', index=False)
 
 # 2. Parse targets into long format
 # cool, but not worth it
