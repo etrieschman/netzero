@@ -9,6 +9,7 @@ min_version('6.0')
 PATH_DATA = 'data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 PATH_INTERIM = PATH_DATA + 'interim/'
+PATH_RESOURCES = PATH_DATA + 'resources/'
 PATH_RESULTS = 'results/'
 YEAR_START = 2006
 YEAR_END = 2021
@@ -33,6 +34,11 @@ rule all:
         outfile_plant = PATH_PROCESSED + 'df_plants.parquet',
         outfile_util = PATH_PROCESSED + 'df_utilities.parquet',
         outfile_own = PATH_PROCESSED + 'df_owners.parquet',
+        # CDP FLAGS
+        outfile_cdp_gen = PATH_PROCESSED + 'flag_cdp_generators.parquet',
+        outfile_cdp_plant = PATH_PROCESSED + 'flag_cdp_plants.parquet',
+        outfile_cdp_util = PATH_PROCESSED + 'flag_cdp_utilities.parquet',
+        outfile_cdp_own = PATH_PROCESSED + 'flag_cdp_owners.parquet',
 
         
 # ============ EXTRACT EIA ============
@@ -72,8 +78,6 @@ rule extract_epa:
         "logs/extract_epa.log"
     script:
         path.join('code', 'extract', 'epa.py')
-        # Path('code/extract/epa.py')
-        # 'code/extract/epa.py'
 
 # ============ TRANSFORM EIA860 GENERATOR ============
 rule transform_eia860_generator:
@@ -230,4 +234,29 @@ rule align_emissions:
         'logs/align_emissions.log'
     script:
         path.join('code', 'align', 'emissions.py')
+
+# ============ FLAG CDP ============
+rule cdp_flag:
+    params:
+        threshold = 90,
+        indir = PATH_DATA,
+        results_dir = PATH_RESULTS + 'align/cdp_flag/'
+    input:
+        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        infile_plant = PATH_PROCESSED + 'df_plants.parquet',
+        infile_util = PATH_PROCESSED + 'df_utilities.parquet',
+        infile_own = PATH_PROCESSED + 'df_owners.parquet',
+        infile_csids = PATH_RESOURCES + 'out_parent_subsidiary_mapping.csv'
+    output:
+        intfile_util = PATH_INTERIM + 'map_utility_cdp.parquet',
+        intfile_own = PATH_INTERIM + 'map_owner_cdp.parquet',
+        outfile_util = PATH_PROCESSED + 'flag_cdp_utilities.parquet',
+        outfile_own = PATH_PROCESSED + 'flag_cdp_owners.parquet',
+        outfile_plant = PATH_PROCESSED + 'flag_cdp_plants.parquet',
+        outfile_gen = PATH_PROCESSED + 'flag_cdp_generators.parquet'
+    log:
+        'logs/cdp_flag.log'
+    script:
+        path.join('code', 'align', 'cdp_flag.py')
+
 

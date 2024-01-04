@@ -34,8 +34,15 @@ def eia860_sample_selection(gdf, pdf, udf, odf):
     udf[colname] = udf.utility_id.isin(pdf.loc[pdf[colname], 'utility_id'].values)
     odf[colname] = odf.plant_code.isin(pdf.loc[pdf[colname], 'plant_code'].values)
 
+    # 3. drop if retirement year before current year
+    colname = '3_drop_retire'
+    gdf[colname] = (gdf.dt_operation_end.isna()) | (gdf.dt_operation_end.dt.year >= gdf.year)
+    pdf[colname] = True
+    udf[colname] = True
+    odf[colname] = True
+
     # SUMMARIZE
-    steps = ['0_all', '1_drop_noncontig_state', '2_drop_chp']
+    steps = ['0_all', '1_drop_noncontig_state', '2_drop_chp', '3_drop_retire']
     step_cols = []
     summ = pd.DataFrame()
     for step in steps:
@@ -64,9 +71,9 @@ def eia860_sample_selection(gdf, pdf, udf, odf):
 # categories from EIA: https://www.eia.gov/tools/faqs/faq.php?id=427&t=3
 subcat_to_energy_source = {
     'natural_gas':['NG'],
-    'coal':['ANT', 'BIT', 'LIG', 'SGC', 'SUB', 'WC', 'RC'],
+    'coal':['ANT', 'BIT', 'LIG', 'SGC', 'SUB', 'WC', 'RC', 'SC'],
     'petroleum':['DFO', 'JF', 'KER', 'PC', 'PG', 'RFO', 'SGP', 'WO'],
-    'other_gases':['BFG', 'OG'],
+    'other_gases':['BFG', 'OG', 'SG'],
     'nuclear':['NUC'],
     'wind':['WND'],
     'hydropower':['WAT'],
@@ -101,6 +108,8 @@ def categorize_fuel(gdf, subcat_to_energy_source, cat_to_subcat):
 def fill_column_missing_values(df, ids, col):
     # Sort the DataFrame
     df[f'{col}_raw'] = df[col].copy()
+    if not pd.api.types.is_numeric_dtype(df[col]):
+        df.loc[df[col] == 'nan', col] = pd.NA
     df.sort_values(by=ids, inplace=True)
     df[col] = df.groupby(ids)[col].ffill().bfill()
     return df
