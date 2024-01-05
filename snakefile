@@ -248,8 +248,8 @@ rule cdp_flag:
         infile_own = PATH_PROCESSED + 'df_owners.parquet',
         infile_csids = PATH_RESOURCES + 'out_parent_subsidiary_mapping.csv'
     output:
-        intfile_util = PATH_INTERIM + 'map_utility_cdp.parquet',
-        intfile_own = PATH_INTERIM + 'map_owner_cdp.parquet',
+        intfile_util = PATH_INTERIM + 'map_utility_cdp.csv',
+        intfile_own = PATH_INTERIM + 'map_owner_cdp.csv',
         outfile_util = PATH_PROCESSED + 'flag_cdp_utilities.parquet',
         outfile_own = PATH_PROCESSED + 'flag_cdp_owners.parquet',
         outfile_plant = PATH_PROCESSED + 'flag_cdp_plants.parquet',
@@ -258,5 +258,29 @@ rule cdp_flag:
         'logs/cdp_flag.log'
     script:
         path.join('code', 'align', 'cdp_flag.py')
+
+# ============ FLAG CDP LLm ============
+rule cdp_flag_llm:
+    params:
+        threshold = 90,
+        indir = PATH_DATA,
+        results_dir = PATH_RESULTS + 'align/cdp_flag/'
+    input:
+        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        infile_plant = PATH_PROCESSED + 'df_plants.parquet',
+        infile_util = PATH_PROCESSED + 'df_utilities.parquet',
+        infile_own = PATH_PROCESSED + 'df_owners.parquet',
+        infile_csids = PATH_RESOURCES + 'out_parent_subsidiary_mapping.csv'
+    output:
+        intfile_util = PATH_INTERIM + 'map_utility_cdp_llm.csv',
+        intfile_own = PATH_INTERIM + 'map_owner_cdp_llm.csv',
+        outfile_util = PATH_PROCESSED + 'flag_cdp_utilities_llm.parquet',
+        outfile_own = PATH_PROCESSED + 'flag_cdp_owners_llm.parquet',
+        outfile_plant = PATH_PROCESSED + 'flag_cdp_plants_llm.parquet',
+        outfile_gen = PATH_PROCESSED + 'flag_cdp_generators_llm.parquet'
+    log:
+        'logs/cdp_flag_llm.log'
+    script:
+        path.join('code', 'align', 'cdp_flag_llm.py')
 
 

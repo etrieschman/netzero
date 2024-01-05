@@ -10,7 +10,8 @@ def format_sumpct_col(grouper, col, params):
         summ.reset_index().groupby(cat, dropna=False)[col].transform('sum').values * 100 )
     out = pd.Series(
         summ[col].round(params['round']).astype(str).str.replace('nan', '-') + ' (' + 
-        pct.round(params['round']).astype(str).str.replace('nan', '-') + '%)', name=f'{col}_sum_pct')
+        pct.round(params['round']).astype(str).str.replace('nan', '-') + '%)', 
+        name=(col, 'sum_pct'))
     return out.to_frame()
 
 def format_npct_col(grouper, col, params):
@@ -21,7 +22,8 @@ def format_npct_col(grouper, col, params):
         summ.reset_index().groupby(cat, dropna=False)[col].transform('sum').values * 100 )
     out = pd.Series(
         summ[col].astype(int).astype(str).str.replace('nan', '-') + ' (' + 
-        pct.round(params['round']).astype(str).str.replace('nan', '-') + '%)', name=f'{col}_n_pct')
+        pct.round(params['round']).astype(str).str.replace('nan', '-') + '%)', 
+        name=(col, 'n_pct'))
     return out.to_frame()
 
 def format_mstd_col(grouper, col, params):
@@ -29,7 +31,8 @@ def format_mstd_col(grouper, col, params):
     summ_s = grouper[[col]].std() / params['denom']
     out = pd.Series(
         summ_m[col].round(params['round']).astype(str).str.replace('nan', '-') + '±' + 
-        summ_s[col].round(params['round']).astype(str).str.replace('nan', '-'), name=f'{col}_mean_std')
+        summ_s[col].round(params['round']).astype(str).str.replace('nan', '-'), 
+        name=(col, 'mean_std'))
     return out.to_frame()
 
 def format_iqr_col(grouper, col, params):
@@ -37,7 +40,8 @@ def format_iqr_col(grouper, col, params):
     summ_h = grouper[[col]].quantile(0.75) / params['denom']
     out = pd.Series(
         '[' + summ_l[col].round(params['round']).astype(str).str.replace('nan', '') + '-' + 
-        summ_h[col].round(params['round']).astype(str).str.replace('nan', '') + ']', name=f'{col}_iqr')
+        summ_h[col].round(params['round']).astype(str).str.replace('nan', '') + ']', 
+        name=(col, 'iqr'))
     return out.to_frame()
 
 
@@ -50,4 +54,5 @@ def sample_summ(df, cat, summdict):
         for aggfn in summdict[k]['aggfns']:
             sdf = aggfn(grouper, k, params)
             summ_cat = pd.concat([sdf, summ_cat], axis=1)
+    summ_cat.columns = pd.MultiIndex.from_tuples(summ_cat.columns)
     return summ_cat
