@@ -16,6 +16,10 @@ snakemake==7.32.4
 thefuzz==0.20.0
 jellyfish==1.0.3
 
+
+dropbox
+openpyxl==3.1.2
+
 # GPT for fuzzy name matching
 transformers==4.36.2
 Accelerate==0.25.0

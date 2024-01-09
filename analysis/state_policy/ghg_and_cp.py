@@ -1,6 +1,7 @@
 # %%
 import pandas as pd
 import numpy as np
+
 # import os
 # os.environ['GS_LIB'] = '/usr/local/Cellar/ghostscript/10.02.1/lib/libgs.dylib'
 
@@ -62,64 +63,3 @@ ghglw = ghgl.pivot(index=['year', 'state'], columns='variable', values='value').
 ghglw['state'] = ghglw.state.str.upper()
 ghglw['has_ghg_target'] = ghglw.has_ghg_target == 'Y'
 ghglw.to_csv(temppath + 'state_policy_drivers_ghgtarget.csv', index=False)
-
-# %%
-# RENEWABLE PORTFOLIO STANDARDS
-# I DID THIS ONE MANUALLY
-from bs4 import BeautifulSoup
-import requests
-from tqdm import tqdm
-import re
-url = 'https://www.ncsl.org/energy/state-renewable-portfolio-standards-and-goals/maptype/'
-req = requests.get(url)
-soup = BeautifulSoup(req.content, 'html.parser')
-
-# %%
-# Initialize an empty list to store your data
-data = []
-
-# Loop through each state
-for state_tag in tqdm(soup.find_all('h3')):
-    state_name = state_tag.get_text()
-    if state_name == 'Puerto Rico':
-        break
-    ul = state_tag.find_next_sibling('ul')
-    lis = ul.findAll('li')
-    for li in lis:
-        # Extract each piece of information from the <li> tag
-        text = li.get_text()
-        label, value = text.split(':', 1)
-        data += [{
-            'state': state_name,
-            'label': label.strip(),
-            'value': value.strip()
-        }]
-
-# %%
-rps = pd.DataFrame(data)
-rps = rps.pivot(index='state', columns='label', values='value').reset_index()
-rps.columns = rps.columns.str.lower().str.replace(' ', '_')
-
-# Clean data
-# 1. Create categorical columns for applicable sectors
-sectors = ['investor-owned utility', 'municipal utilities', 'cooperative utilities', 'local government', 'retail supplier']
-for sector in sectors:
-    rps[sector] = rps.applicable_sectors.str.lower().str.contains(sector)
-rps.drop(columns='applicable_sectors', inplace=True)
-rps.to_csv(temppath + 'spd_rps_raw.csv', index=False)
-
-# 2. Parse targets into long format
-# cool, but not worth it
-# rps['requirements'] = rps['requirement'].apply(lambda x: re.findall(r'(\d+)%\s*(.*?)\s*(by|from)\s*(.*?)\s*(\d+)', x))
-# reqs = []
-# for __, row in rps.iterrows():
-#     for target, year in row['requirements']:
-#         reqs.append({'state': row.state, 'target': target, 'year': year})
-# reqs = pd.DataFrame(reqs)
-# rpsl = pd.merge(left=rps.drop(columns='requirements'), 
-#                right=reqs, how='outer', on=['state'])
-
-
-# %%
-rps
-# %%
