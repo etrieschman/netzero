@@ -189,8 +189,8 @@ if __name__ == '__main__':
     df_utility = fuzzy_merge(uids, 'pp_utility_name', scorer, num_matches=1)
     df_owner = fuzzy_merge(oids, 'pp_owner_name', scorer, num_matches=1)
     # write interim data to file
-    df_utility.csv(snakemake.output.intfile_util)
-    df_owner.csv(snakemake.output.intfile_own)
+    df_utility.to_csv(snakemake.output.intfile_util)
+    df_owner.to_csv(snakemake.output.intfile_own)
 
     # MAKE CDP FLAGS
     # utility

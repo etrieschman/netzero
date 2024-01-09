@@ -24,9 +24,12 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 200)
 
 # READ IN DATA
+suff = '_llm'
 # INTERIM DATA
-i_ucdp = pd.read_parquet(PATH_INTERIM + 'map_utility_cdp.parquet')
-i_ocdp = pd.read_parquet(PATH_INTERIM + 'map_owner_cdp.parquet')
+i_ucdp = pd.read_csv(PATH_INTERIM + 'map_utility_cdp.csv')
+i_ocdp = pd.read_csv(PATH_INTERIM + 'map_owner_cdp.csv')
+i_ucdpllm = pd.read_csv(PATH_INTERIM + 'map_utility_cdp_llm.csv')
+i_ocdpllm = pd.read_csv(PATH_INTERIM + 'map_owner_cdp_llm.csv')
 # FINAL DATA
 gdf = pd.read_parquet(PATH_PROCESSED + 'df_generators.parquet')
 gendf = pd.read_parquet(PATH_PROCESSED + 'df_generation.parquet')
@@ -36,6 +39,8 @@ udf = pd.read_parquet(PATH_PROCESSED + 'df_utilities.parquet')
 odf = pd.read_parquet(PATH_PROCESSED + 'df_owners.parquet')
 flag_cdp_gdf = pd.read_parquet(PATH_PROCESSED + 'flag_cdp_generators.parquet')
 flag_cdp_udf = pd.read_parquet(PATH_PROCESSED + 'flag_cdp_utilities.parquet')
+flag_cdp_gdfllm = pd.read_parquet(PATH_PROCESSED + 'flag_cdp_generators_llm.parquet')
+flag_cdp_udfllm = pd.read_parquet(PATH_PROCESSED + 'flag_cdp_utilities_llm.parquet')
 
 # %%
 # MAKE ANALYSIS DATASET
@@ -68,9 +73,11 @@ ggepuodf_samp = ggepcdf.loc[ggepcdf.in_sample]
 # %%
 # SUMMARIZE FUZZY MATCH RESULTS
 sample_cdp_udf = flag_cdp_udf.loc[flag_cdp_udf.utility_id.isin(ggepuodf_samp.utility_id.values)]
+sample_cdp_udfllm = flag_cdp_udfllm.loc[flag_cdp_udfllm.utility_id.isin(ggepuodf_samp.utility_id.values)]
 # histogram
 bins=30
 threshold = 90
+thresholdllm = 0.98
 fig, ax = plt.subplots(nrows=2, sharex=True, sharey=False, figsize=(4,5))
 ax[0].hist(sample_cdp_udf.pp_cdp_parname_score, bins=bins, color='C0', density=True)
 ax[1].hist(sample_cdp_udf.pp_cdp_subname_score, bins=bins, color='C1', density=True)
@@ -95,6 +102,21 @@ for year in years:
     plt.title(f'EIA utility name matches, {year}')
     plt.savefig(PATH_RESULTS + f'fig_fuzzyscore_scatter_{year}.png', dpi=300, bbox_inches='tight')
 
+# %%
+# scatterplot llm vs fuzzy
+years = [2006, 2012, 2018, 2021]
+for year in years:
+    plt.figure(figsize=(4,4))
+    plt.axvline(x=threshold, color='C1', linestyle='-')
+    plt.axhline(y=thresholdllm, color='C1', linestyle='-')
+    plt.plot(sample_cdp_udf.loc[sample_cdp_udf.year == year, 'pp_cdp_subname_score'],
+            sample_cdp_udfllm.loc[sample_cdp_udf.year == year, 'pp_cdp_subname_score'],
+                marker='.', markersize=1, linestyle='')
+    plt.xlabel('Subsidiary name match fuzzy score')
+    plt.ylabel('Subsidiary name match LLM score')
+    plt.title(f'EIA utility name matches, {year}')
+    plt.savefig(PATH_RESULTS + f'fig_fuzzyscore_scatter_{year}.png', dpi=300, bbox_inches='tight')
+
 
 # %%
 # summary table
@@ -107,7 +129,7 @@ summ.to_csv(PATH_RESULTS + 'df_utilities_in_cdp.csv', index=False)
 
 # %%
 # score of 86
-sample_cdp_udf.loc[(sample_cdp_udf.pp_cdp_subname_score == 86) & 
+sample_cdp_udf.loc[(sample_cdp_udf.pp_cdp_subname_score == 85.5) & 
                    (sample_cdp_udf.in_cdp)]
 
 

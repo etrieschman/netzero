@@ -213,8 +213,8 @@ if __name__ == '__main__':
     df_utility = fuzzy_merge(uids, 'pp_utility_name', num_matches=1, model=model, tokenizer=tokenizer)
     df_owner = fuzzy_merge(oids, 'pp_owner_name', num_matches=1, model=model, tokenizer=tokenizer)
     # write interim data to file
-    df_utility.to_parquet(snakemake.output.intfile_util)
-    df_owner.to_parquet(snakemake.output.intfile_own)
+    df_utility.to_csv(snakemake.output.intfile_util)
+    df_owner.to_csv(snakemake.output.intfile_own)
 
     # MAKE CDP FLAGS
     print('Making CDP flags and writing to file...')
