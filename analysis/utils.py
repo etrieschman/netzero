@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 # HELPER FUNCTIONS
@@ -56,3 +59,53 @@ def sample_summ(df, cat, summdict):
             summ_cat = pd.concat([sdf, summ_cat], axis=1)
     summ_cat.columns = pd.MultiIndex.from_tuples(summ_cat.columns)
     return summ_cat
+
+
+# PLOT GENERATION AND CAPACITY MIX
+options = {
+    'nameplate_capacity_mw':{'units':'MW', 'denom':1},
+    'net_gen_tot_an':{'units':'TWh', 'denom':1e6}
+}
+
+def plot_mix(df, var, col_loc, path, denom, units, 
+             show_pct=True, ncols=3, scale=[5,4]):
+    gm = (df
+        .groupby(['year', 'energy_source_1_subcat', col_loc])
+        .agg({var:'sum'}) / denom).reset_index()
+    gm[f'{var}_loc'] = gm.groupby(['year', col_loc])[var].transform('sum')
+    gm[f'{var}_pct'] = gm[var] / gm[f'{var}_loc']
+
+    # Pivot the data to get energy type breakdown for each state by year
+    var_summ = var if not show_pct else f'{var}_pct'
+    var_summ_unit = 'pct' if show_pct else units
+    gmt = gm.pivot_table(
+        values=var_summ, index=['year', col_loc], 
+        columns='energy_source_1_subcat', aggfunc='sum')
+    # Fill missing values with 0 (if any)
+    gmt = gmt.fillna(0).reset_index()
+    
+    # Now we plot a stacked bar chart for each state
+    locs = gm[col_loc].unique()
+
+    # Set up the matplotlib figure and axes
+    nrows = int(np.ceil(len(locs)/ncols))
+    fig, axes = plt.subplots(
+        ncols=ncols, nrows=nrows,
+        figsize=(scale[0]*ncols, scale[1]*nrows), sharex=False, sharey=True)
+    # Loop through each location and create a stacked bar chart
+    for ax, loc in zip(axes.flatten(), locs):
+        loc_data = gmt.loc[gmt[col_loc] == loc]
+        loc_data.plot(kind='bar', x='year', legend=False, stacked=True, cmap='tab20', 
+                      ax=ax)
+        ax.set_title(f'{var} in {loc}', fontsize=20)
+        ax.set_xlabel('Year', fontsize=14)
+        ax.set_ylabel(f'{var_summ_unit}', fontsize=14)
+        ax.tick_params(axis='both', labelsize=12)
+    axes[0,-1].legend(title='Energy Type', 
+                      loc='upper left', bbox_to_anchor=(1, 1),
+                      fontsize=14)
+
+    # Adjust the layout to prevent overlap
+    plt.tight_layout()
+    plt.savefig(path, dpi=300, bbox_inches='tight')
+    plt.show()

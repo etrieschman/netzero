@@ -187,3 +187,35 @@ cols_tailing = [col for col in summ.columns if col not in cols_leading]
 summ = summ[cols_leading + cols_tailing]
 summ.to_csv(PATH_RESULTS + 'df_compare_cdp_in_out.csv', index=False)
 # %%
+# SUMMARIZE IN A TIGHTER FORMAT
+summsub = summ.loc[summ.year.isin([2015, 2021]) & 
+                (summ.energy_source_1_cat == 'total') & 
+                (summ.nerc_region == 'total')]
+summsub.drop(columns=['energy_source_1_cat', 'energy_source_1_subcat', 'nerc_region'], inplace=True)
+
+summsub = summsub.pivot(index='in_cdp', columns='year').T
+summsub.to_csv(PATH_RESULTS + 'df_compare_cdp_abbrev.csv', index=True)
+
+# %%
+# SUMMARIZE CDP COUNTS
+cdp = pd.read_csv(PATH_DATA + 'resources/cdp_elec.csv', encoding='ISO-8859-1')
+print('N gvkeys CDP:', len(cdp.gvkey.unique()))
+print('N gvkeys mapped:', len(flag_cdp_udf.loc[flag_cdp_udf.in_cdp].gvkey.unique()))
+summ = (flag_cdp_udf.loc[flag_cdp_udf.in_cdp]
+        .groupby(['year'])
+        .agg(unique_gvkey=('gvkey','nunique'),
+             unique_utilityid=('utility_id','nunique')))
+summ.to_csv(PATH_RESULTS + 'df_unique_gvkeys.csv', index=True)
+
+# %%
+summ = (flag_cdp_udf.loc[flag_cdp_udf.in_cdp]
+        .groupby(['year', 'gvkey'])['utility_id'].nunique()
+        .reset_index())
+# Pivot the DataFrame
+pivot_summ = summ.pivot(index='year', columns='gvkey', values='utility_id')
+
+# Plotting
+pivot_summ.plot(kind='line', linewidth=0.5, legend=False)
+plt.title('Count of unique utility_id per GVKEY')
+plt.savefig(PATH_RESULTS + 'fig_utility_id_counts.png', dpi=300, bbox_inches='tight')
+# %%
