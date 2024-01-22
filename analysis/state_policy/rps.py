@@ -6,6 +6,7 @@ from tqdm import tqdm
 import dropbox
 import io
 import sys, os
+import re
 import openpyxl
 
 parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -20,13 +21,155 @@ pd.set_option('display.max_rows', 100)
 dbx = dropbox.Dropbox(DB_ACCESS_TOKEN)
 rps_path = '/Net Zero Cluster/data/State Policy/rps/data_raw/'
 
-# %%
+
+# -------------------------------------
+# %% ============ 2009 - 2012 ============
+# -------------------------------------
 # FROM JOE-ALDY PROVIDED RPS ARCHIVES: 2009-2012
-_, j = dbx.files_download(rps_path + 'aldy_state_rps_laws_and_data.xlsx')
-j = openpyxl.load_workbook(io.BytesIO(j.content), data_only=False)
-sheet_names = j.sheetnames
-sheet_names
+# _, j = dbx.files_download(rps_path + 'aldy_state_rps_laws_and_data.xlsx')
+# workbook = openpyxl.load_workbook(io.BytesIO(j.content), data_only=False)
+# sheet_names = workbook.sheetnames
+# sheet = workbook["Dec '12"]
+
+def get_column_names(sheet, header_rows, data_start_row):
+    """
+    Generate column names based on the header rows.
+    """
+    headers = []
+    for row in sheet.iter_rows(min_row=data_start_row - header_rows, 
+                               max_row=data_start_row - 1, values_only=True):
+        headers += [list(row)]
+    headers[0] = pd.Series(headers[0]).ffill().to_list() # fill across merged columns
+    # drop last column if last row is None
+    headers = np.array(headers)
+    if headers[-1, -1] is None:
+        headers = headers[:, :-1]
+    column_names = [' '.join(map(str,filter(None, col))).strip() for col in zip(*headers)]
+    # column_names.insert(0, 'notes_comment')  # Insert the column for comments at the beginning
+    column_names = [
+        re.sub(r'\s+', '_',
+            re.sub(r'\(.*?\)', '', c).strip())
+        .strip().lower()
+        for c in column_names
+    ]
+    # column_names = [
+    #     re.sub('rps_start_year', 'start_year', c)
+    #     for c in column_names]
+    return column_names + ['all_comments']
+
+
+def read_sheet(sheet, data_start_row):
+    """
+    Read specified columns from a sheet starting from a given row, including comments.
+    """
+    data = []
+    for row in sheet.iter_rows(min_row=data_start_row, values_only=True):
+        data.append(list(row))
+    # Check if the last column is empty (all None)
+    if all(row[-1] is None for row in data):
+        # Drop the last column
+        data = [row[:-1] for row in data]
+    return data
+
+def handle_merged_cells(sheet, data, data_start_row):
+    """
+    Modify data to handle merged cells in specified columns.
+    """
+    for merged_cell in sheet.merged_cells.ranges:
+        top_left_cell_value = sheet.cell(merged_cell.min_row, merged_cell.min_col).value
+        for row in range(merged_cell.min_row, merged_cell.max_row + 1):
+            if row >= data_start_row:  # Ensure we're in the data rows
+                for col in range(merged_cell.min_col, merged_cell.max_col + 1):
+                    data[row - data_start_row][col - 1] = top_left_cell_value
+    return data
+
+def aggregate_comments(sheet, data_start_row, column_names):
+    """
+    Aggregate comments from each cell, prefixed by the column name.
+    """
+    aggregated_comments = []
+    for row in sheet.iter_rows(min_row=data_start_row, values_only=False):
+        comments_in_row = []
+        for col, cell in enumerate(row, start=1):
+            comment = cell.comment
+            if comment is not None:
+                column_name = column_names[col - 1]
+                comments_in_row.append(f"{column_name}: {comment.text.strip()}")
+        aggregated_comment = " | ".join(comments_in_row)
+        aggregated_comments.append(aggregated_comment)
+    return aggregated_comments
+
+def process_workbook(file_content, sheet_config):
+    """
+    Process each sheet in the workbook according to the provided configuration.
+    """
+    workbook = openpyxl.load_workbook(file_content, data_only=True)
+    all_data = []
+    for sheet_name, config in sheet_config.items():
+        sheet = workbook[sheet_name]
+        data_start_row = config['data_start_row']
+        header_rows = config['header_rows']
+
+        column_names = get_column_names(sheet, header_rows, data_start_row)
+        data = read_sheet(sheet, data_start_row)
+        data = handle_merged_cells(sheet, data, data_start_row)
+
+        # Aggregate comments and append them to each row
+        comments = aggregate_comments(sheet, data_start_row, column_names)
+        for i, row in enumerate(data):
+            row.append(comments[i])
+
+        # Convert to DataFrame and set column names
+        df = pd.DataFrame(data, columns=column_names)
+        df['date'] = pd.to_datetime(sheet_name, format="%b '%y")
+        all_data.append(df)
+
+    # Concatenate all dataframes
+    return pd.concat(all_data, ignore_index=True)
+
+# Configuration for each sheet
+sheet_config = {
+    "Dec '12":{'data_start_row': 10, 'header_rows': 2}, 
+    "Dec '11":{'data_start_row': 10, 'header_rows': 2}, 
+    "Dec '10":{'data_start_row': 10, 'header_rows': 2}, 
+    "Dec '09":{'data_start_row': 10, 'header_rows': 2}, 
+    "Apr '09":{'data_start_row': 3, 'header_rows': 2}
+}
+
+# Use the function with your Excel file
+_, file = dbx.files_download(rps_path + 'aldy_state_rps_laws_and_data.xlsx')
+file_content = io.BytesIO(file.content)
+output_df = process_workbook(file_content, sheet_config)
+
+# # upload to dropbox
+id_cols = [
+    'date', 'state', 'memo_notes_and_updates', 'all_comments', 'rps_type', 'tier']
+id_cols += [col for col in output_df if col.startswith('eligible')]
+output_df = output_df[id_cols + [col for col in output_df.columns if col not in id_cols]]
+try:
+    dbx.files_upload(
+        output_df.to_csv(index=False).encode(), 
+        rps_path + f'df_cln_dsire_{output_df.date.dt.year.min()}_{output_df.date.dt.year.max()}.csv',
+        mode=dropbox.files.WriteMode.overwrite)
+    print("File uploaded successfully")
+except dropbox.exceptions.ApiError as err:
+    print(f"API Error: {err}")
+
+
+
+
+
+
+
+
+
+
+
+
 # %%
+# -------------------------------------
+# ============ 2015-2023 ============
+# -------------------------------------
 # FROM ARCHIVED DATA IN RPS ARCHIVES: 2015-2023
 # get relevant archives
 
@@ -89,6 +232,9 @@ except dropbox.exceptions.ApiError as err:
 
 
 # %%
+# -------------------------------------
+# ============ Appendix ============
+# -------------------------------------
 # APPENDIX - RPS USING NCSL DATA
 from bs4 import BeautifulSoup
 import requests
