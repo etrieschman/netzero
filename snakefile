@@ -6,11 +6,11 @@ min_version('6.0')
 # --------------------------- Workflow constants --------------------------- #
 # configfile: "config.yaml"
 
-PATH_DATA = 'data/'
+PATH_DATA = './data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 PATH_INTERIM = PATH_DATA + 'interim/'
 PATH_RESOURCES = PATH_DATA + 'resources/'
-PATH_RESULTS = 'results/'
+PATH_RESULTS = './results/'
 YEAR_START = 2006
 YEAR_END = 2021
 
