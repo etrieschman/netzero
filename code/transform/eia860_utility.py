@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+from pathlib import Path
 
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
@@ -68,9 +69,13 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_raw = snakemake.params.indir
-    intfile = snakemake.output.intfile
-    outfile = snakemake.output.outfile
+    path_raw = Path(snakemake.params.indir)
+    path_results = Path(snakemake.params.resultsdir)
+    path_results.mkdir(parents=True, exist_ok=True)
+    intfile = Path(snakemake.output.intfile)
+    intfile.parent.mkdir(parents=True, exist_ok=True)
+    outfile = Path(snakemake.output.outfile)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
 
     # read-in parameters
     print('Reading in data...')
@@ -93,7 +98,9 @@ if __name__ == '__main__':
     df['dup_key'] = df.utility_id.astype(str) + '_' + df.year.astype(str)
     df['duplicate'] = df.dup_key.isin(df.loc[df.dup_key.duplicated(), 'dup_key'].drop_duplicates())
     print('number of dups, by year: ')
-    print(df.loc[df.duplicate].groupby('year')['utility_id'].count())
+    out = df.loc[df.duplicate].groupby('year')['utility_id'].count()
+    out.to_csv(path_results / 'summ_dups_start.csv')
+    print(out)
     # NOTE: All the issues are in 2010, and it looks like it's because of differences in naming etc.
     df['num_cols_nan'] = df.isna().sum(axis=1)
     df['min_num_cols_nan'] = df.groupby('dup_key')['num_cols_nan'].transform('min')
@@ -103,7 +110,12 @@ if __name__ == '__main__':
     df_dedup = df.loc[df.dup_keep]
     # for remaining, drop duplicate arbitrarily
     df_dedup = df_dedup.loc[~df_dedup.dup_key.duplicated()]
-    print('number of dups remaining:', df_dedup.dup_key.duplicated().sum())
+    print('number of dups remaining:')
+    out = df_dedup.copy()
+    out['duplicate'] = out.dup_key.isin(out.loc[out.dup_key.duplicated(), 'dup_key'].drop_duplicates())
+    out =  out.loc[out.duplicate].groupby('year')['utility_id'].count()
+    out.to_csv(path_results / 'summ_dups_end.csv')
+    print(out)
     df_dedup.drop(columns=['dup_key', 'duplicate', 'num_cols_nan', 'min_num_cols_nan', 'dup_keep'], inplace=True)
     
     # save final file
@@ -114,4 +126,6 @@ if __name__ == '__main__':
     print('Summarizing unique identifiers...')
     udf = df.rename(columns={'utility_id':'uid'})
     print('Utility dataset:')
-    print(summarize_id_counts_byyear(udf.copy(), ['uid']))
+    out = summarize_id_counts_byyear(udf.copy(), ['uid'])
+    out.to_csv(path_results / 'df_summ_final.csv')
+    print(out)

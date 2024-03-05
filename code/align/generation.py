@@ -209,6 +209,8 @@ if __name__ == '__main__':
     
     results_dir = Path(snakemake.params.results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
+    final_csv_dir = Path(snakemake.params.final_csv_dir)
+    final_csv_dir.mkdir(parents=True, exist_ok=True)
     
     # load data
     gdf = pd.read_parquet(snakemake.input.infile_gen)
@@ -244,6 +246,9 @@ if __name__ == '__main__':
                 'elec_quantity_tot_an_po', 'tot_mmbtu_tot_an_po', 
                 'elec_mmbtu_tot_an']
     ggp[vars_keep].to_parquet(snakemake.output.outfile)
+
+    # save to csv
+    ggp[vars_keep].to_csv(final_csv_dir / snakemake.output.outfile.split('/')[-1].replace('.parquet', '.csv'))
 
 
 # %%

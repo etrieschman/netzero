@@ -6,12 +6,13 @@ min_version('6.0')
 # --------------------------- Workflow constants --------------------------- #
 # configfile: "config.yaml"
 
-PATH_DATA = './data/'
+PATH_DATA = 'data/'
 PATH_PROCESSED = PATH_DATA + 'processed/'
 PATH_INTERIM = PATH_DATA + 'interim/'
 PATH_RESOURCES = PATH_DATA + 'resources/'
-PATH_RESULTS = './results/'
-YEAR_START = 2006
+PATH_FINAL = PATH_DATA + 'final/'
+PATH_RESULTS = 'results/'
+YEAR_START = 2019
 YEAR_END = 2021
 
 # --------------------------- Rules --------------------------- #
@@ -27,18 +28,18 @@ rule all:
         # PATH_PROCESSED + 'epa_facility.parquet',
         # PATH_PROCESSED + 'epa_emissions.parquet',
         # ALIGN
-        outfile_generation = PATH_PROCESSED + 'df_generation.parquet',
-        outfile_emissions = PATH_PROCESSED + 'df_emissions.parquet',
+        outfile_generation = PATH_FINAL + 'df_generation.parquet',
+        outfile_emissions = PATH_FINAL + 'df_emissions.parquet',
         # ENTITIES
-        outfile_gen = PATH_PROCESSED + 'df_generators.parquet',
-        outfile_plant = PATH_PROCESSED + 'df_plants.parquet',
-        outfile_util = PATH_PROCESSED + 'df_utilities.parquet',
-        outfile_own = PATH_PROCESSED + 'df_owners.parquet',
+        outfile_gen = PATH_FINAL + 'df_generators.parquet',
+        outfile_plant = PATH_FINAL + 'df_plants.parquet',
+        outfile_util = PATH_FINAL + 'df_utilities.parquet',
+        outfile_own = PATH_FINAL + 'df_owners.parquet',
         # CDP FLAGS
-        outfile_cdp_gen = PATH_PROCESSED + 'flag_cdp_generators.parquet',
-        outfile_cdp_plant = PATH_PROCESSED + 'flag_cdp_plants.parquet',
-        outfile_cdp_util = PATH_PROCESSED + 'flag_cdp_utilities.parquet',
-        outfile_cdp_own = PATH_PROCESSED + 'flag_cdp_owners.parquet',
+        outfile_cdp_gen = PATH_FINAL + 'flag_cdp_generators.parquet',
+        outfile_cdp_plant = PATH_FINAL + 'flag_cdp_plants.parquet',
+        outfile_cdp_util = PATH_FINAL + 'flag_cdp_utilities.parquet',
+        outfile_cdp_own = PATH_FINAL + 'flag_cdp_owners.parquet',
 
         
 # ============ EXTRACT EIA ============
@@ -79,12 +80,14 @@ rule extract_epa:
     script:
         path.join('code', 'extract', 'epa.py')
 
+
 # ============ TRANSFORM EIA860 GENERATOR ============
 rule transform_eia860_generator:
     params:
         year_start = YEAR_START,
         year_end = YEAR_END,
-        indir = PATH_DATA + 'raw/' + 'eia/f860/'
+        indir = PATH_DATA + 'raw/' + 'eia/f860/',
+        resultsdir = PATH_RESULTS + 'transform/eia/f860/generator/'
     input: 
         flag = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/3_1_Generator_Y{YEAR_END}.xlsx',
     output:
@@ -100,7 +103,8 @@ rule transform_eia860_plant:
     params:
         year_start = YEAR_START,
         year_end = YEAR_END,
-        indir = PATH_DATA + 'raw/' + 'eia/f860/'
+        indir = PATH_DATA + 'raw/' + 'eia/f860/',
+        resultsdir = PATH_RESULTS + 'transform/eia/f860/plant/'
     input: 
         flag = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/2___Plant_Y{YEAR_END}.xlsx',
     output:
@@ -117,7 +121,8 @@ rule transform_eia860_utility:
     params:
         year_start = YEAR_START,
         year_end = YEAR_END,
-        indir = PATH_DATA + 'raw/' + 'eia/f860/'
+        indir = PATH_DATA + 'raw/' + 'eia/f860/',
+        resultsdir = PATH_RESULTS + 'transform/eia/f860/utility/'
     input: 
         flag = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/1___Utility_Y{YEAR_END}.xlsx',
     output:
@@ -134,7 +139,8 @@ rule transform_eia860_ownership:
     params:
         year_start = YEAR_START,
         year_end = YEAR_END,
-        indir = PATH_DATA + 'raw/' + 'eia/f860/'
+        indir = PATH_DATA + 'raw/' + 'eia/f860/',
+        resultsdir = PATH_RESULTS + 'transform/eia/f860/ownership/'
     input: 
         flag = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/4___Owner_Y{YEAR_END}.xlsx',
     output:
@@ -151,7 +157,8 @@ rule transform_eia923_ops:
     params:
         year_start = YEAR_START,
         year_end = YEAR_END,
-        indir = PATH_DATA + 'raw/' + 'eia/f923/'
+        indir = PATH_DATA + 'raw/' + 'eia/f923/',
+        resultsdir = PATH_RESULTS + 'transform/eia/f923/'
     input: 
         flag = PATH_DATA + 'raw/' + 'eia/' + f'f923/{YEAR_END}/EIA923_Schedules_2_3_4_5_M_12_{YEAR_END}_Final_Revision.xlsx'
     output:
@@ -168,7 +175,8 @@ rule transform_epa:
         year_start = YEAR_START,
         year_end = YEAR_END,
         indir_facility = PATH_DATA + 'raw/' + 'epa/facility/',
-        indir_emissions = PATH_DATA + 'raw/' + 'epa/emissions/'
+        indir_emissions = PATH_DATA + 'raw/' + 'epa/emissions/',
+        resultsdir = PATH_RESULTS + 'transform/epa/'
     input:
         flag_fac = PATH_DATA + 'raw/' + 'epa/' + f'facility/{YEAR_END}/facility-{YEAR_END}.csv',
         flag_em = PATH_DATA + 'raw/' + 'epa/' + f'emissions/{YEAR_END}/emissions-daily-{YEAR_END}-wy.csv'        
@@ -185,17 +193,18 @@ rule transform_epa:
 rule align_entities:
     params:
         indir = PATH_PROCESSED,
-        results_dir = PATH_RESULTS + 'align/entities/'
+        results_dir = PATH_RESULTS + 'align/entities/',
+        final_csv_dir = PATH_FINAL + 'csv/'
     input:
         infile_gen = PATH_PROCESSED + 'eia860_generator.parquet',
         infile_plant = PATH_PROCESSED + 'eia860_plant.parquet',
         infile_util = PATH_PROCESSED + 'eia860_utility.parquet',
         infile_own = PATH_PROCESSED + 'eia860_ownership.parquet',
     output:
-        outfile_gen = PATH_PROCESSED + 'df_generators.parquet',
-        outfile_plant = PATH_PROCESSED + 'df_plants.parquet',
-        outfile_util = PATH_PROCESSED + 'df_utilities.parquet',
-        outfile_own = PATH_PROCESSED + 'df_owners.parquet'
+        outfile_gen = PATH_FINAL + 'df_generators.parquet',
+        outfile_plant = PATH_FINAL + 'df_plants.parquet',
+        outfile_util = PATH_FINAL + 'df_utilities.parquet',
+        outfile_own = PATH_FINAL + 'df_owners.parquet'
     log:
         'logs/align_entities.log'
     script:
@@ -205,12 +214,13 @@ rule align_entities:
 rule align_generation:
     params:
         indir = PATH_PROCESSED,
-        results_dir = PATH_RESULTS + 'align/generation/'
+        results_dir = PATH_RESULTS + 'align/generation/',
+        final_csv_dir = PATH_FINAL + 'csv/'
     input:
-        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
+        infile_gen = PATH_FINAL + 'df_generators.parquet',
         infile_ops = PATH_PROCESSED + 'eia923_ops.parquet'
     output:
-        outfile = PATH_PROCESSED + 'df_generation.parquet'
+        outfile = PATH_FINAL + 'df_generation.parquet'
     log:
         'logs/align_generation.log'
     script:
@@ -221,15 +231,16 @@ rule align_generation:
 rule align_emissions:
     params:
         indir = PATH_DATA,
-        results_dir = PATH_RESULTS + 'align/emissions/'
+        results_dir = PATH_RESULTS + 'align/emissions/',
+        final_csv_dir = PATH_FINAL + 'csv/'
     input:
-        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
-        infile_ops = PATH_PROCESSED + 'df_generation.parquet',
+        infile_gen = PATH_FINAL + 'df_generators.parquet',
+        infile_ops = PATH_FINAL + 'df_generation.parquet',
         infile_epa_emissions = PATH_PROCESSED + 'epa_emissions.parquet',
-        crosswalk = PATH_DATA + 'resources/epa_eia_crosswalk.csv',
-        emission_factors = PATH_DATA + 'resources/se_emissions_factors.csv'
+        crosswalk = PATH_RESOURCES + 'epa_eia_crosswalk.csv',
+        emission_factors = PATH_RESOURCES + 'se_emissions_factors.csv'
     output:
-        outfile = PATH_PROCESSED + 'df_emissions.parquet'
+        outfile = PATH_FINAL + 'df_emissions.parquet'
     log:
         'logs/align_emissions.log'
     script:
@@ -240,47 +251,26 @@ rule cdp_flag:
     params:
         threshold = 90,
         indir = PATH_DATA,
-        results_dir = PATH_RESULTS + 'align/cdp_flag/'
+        final_stata_dir = PATH_FINAL + 'stata/',
+        results_dir = PATH_RESULTS + 'align/cdp_flag/',
+        final_csv_dir = PATH_FINAL + 'csv/'
     input:
-        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
-        infile_plant = PATH_PROCESSED + 'df_plants.parquet',
-        infile_util = PATH_PROCESSED + 'df_utilities.parquet',
-        infile_own = PATH_PROCESSED + 'df_owners.parquet',
+        infile_gen = PATH_FINAL + 'df_generators.parquet',
+        infile_plant = PATH_FINAL + 'df_plants.parquet',
+        infile_util = PATH_FINAL + 'df_utilities.parquet',
+        infile_own = PATH_FINAL + 'df_owners.parquet',
         infile_csids = PATH_RESOURCES + 'out_parent_subsidiary_mapping.csv'
     output:
         intfile_util = PATH_INTERIM + 'map_utility_cdp.csv',
         intfile_own = PATH_INTERIM + 'map_owner_cdp.csv',
-        outfile_util = PATH_PROCESSED + 'flag_cdp_utilities.parquet',
-        outfile_own = PATH_PROCESSED + 'flag_cdp_owners.parquet',
-        outfile_plant = PATH_PROCESSED + 'flag_cdp_plants.parquet',
-        outfile_gen = PATH_PROCESSED + 'flag_cdp_generators.parquet'
+        outfile_util = PATH_FINAL + 'flag_cdp_utilities.parquet',
+        outfile_own = PATH_FINAL + 'flag_cdp_owners.parquet',
+        outfile_plant = PATH_FINAL + 'flag_cdp_plants.parquet',
+        outfile_gen = PATH_FINAL + 'flag_cdp_generators.parquet'
     log:
         'logs/cdp_flag.log'
     script:
         path.join('code', 'align', 'cdp_flag.py')
 
-# ============ FLAG CDP LLm ============
-rule cdp_flag_llm:
-    params:
-        threshold = 90,
-        indir = PATH_DATA,
-        results_dir = PATH_RESULTS + 'align/cdp_flag/'
-    input:
-        infile_gen = PATH_PROCESSED + 'df_generators.parquet',
-        infile_plant = PATH_PROCESSED + 'df_plants.parquet',
-        infile_util = PATH_PROCESSED + 'df_utilities.parquet',
-        infile_own = PATH_PROCESSED + 'df_owners.parquet',
-        infile_csids = PATH_RESOURCES + 'out_parent_subsidiary_mapping.csv'
-    output:
-        intfile_util = PATH_INTERIM + 'map_utility_cdp_llm.csv',
-        intfile_own = PATH_INTERIM + 'map_owner_cdp_llm.csv',
-        outfile_util = PATH_PROCESSED + 'flag_cdp_utilities_llm.parquet',
-        outfile_own = PATH_PROCESSED + 'flag_cdp_owners_llm.parquet',
-        outfile_plant = PATH_PROCESSED + 'flag_cdp_plants_llm.parquet',
-        outfile_gen = PATH_PROCESSED + 'flag_cdp_generators_llm.parquet'
-    log:
-        'logs/cdp_flag_llm.log'
-    script:
-        path.join('code', 'align', 'cdp_flag_llm.py')
 
 

@@ -71,8 +71,10 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_epa_emissions = snakemake.output.epa_emissions
-    path_epa_facility = snakemake.output.epa_facility
+    path_epa_emissions = Path(snakemake.output.epa_emissions)
+    path_epa_emissions.mkdir(parents=True, exist_ok=True)
+    path_epa_facility = Path(snakemake.output.epa_facility)
+    path_epa_facility.mkdir(parents=True, exist_ok=True)
 
     # The bulk data api allows you to download prepackaged data sets. There are two endpoints for obtaining bulk data.
     # The first is the /bulk-files endpoint which returns metadata about files. This metadata includes the path to the
@@ -113,6 +115,12 @@ if __name__ == '__main__':
     print('Number of files to download: '+ str(len(filesToDownload)))
     download_epa_files(URL_BASE, filesToDownload, path_epa_emissions, epa_params,
                 subset_col='Operating Time Count')
-
+    
+    # RECORD OF DOWNLOAD
+    from datetime import datetime
+    logfile = path_epa_emissions.parent / 'download_log.txt'
+    save_log = f'Data last downloaded on {datetime.now().strftime("%Y-%m-%d")} with data from {year_start}-{year_end}'
+    with open(logfile, 'w') as file:
+        file.write(save_log)
 
 # %%

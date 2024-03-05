@@ -127,6 +127,8 @@ if __name__ == '__main__':
     
     results_dir = Path(snakemake.params.results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
+    final_csv_dir = Path(snakemake.params.final_csv_dir)
+    final_csv_dir.mkdir(parents=True, exist_ok=True)
 
     # LOAD DATA
     gdf = pd.read_parquet(snakemake.input.infile_gen)
@@ -162,4 +164,10 @@ if __name__ == '__main__':
     pdf_sub.to_parquet(snakemake.output.outfile_plant)
     udf_sub.to_parquet(snakemake.output.outfile_util)
     odf_sub.to_parquet(snakemake.output.outfile_own)
+
+    # WRITE TO CSV FILES
+    gdf_sub.to_csv(final_csv_dir / snakemake.output.outfile_gen.split('/')[-1].replace('.parquet', '.csv'))
+    pdf_sub.to_csv(final_csv_dir / snakemake.output.outfile_plant.split('/')[-1].replace('.parquet', '.csv'))
+    udf_sub.to_csv(final_csv_dir / snakemake.output.outfile_util.split('/')[-1].replace('.parquet', '.csv'))
+    odf_sub.to_csv(final_csv_dir / snakemake.output.outfile_own.split('/')[-1].replace('.parquet', '.csv'))
 # %%

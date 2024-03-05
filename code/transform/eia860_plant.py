@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+from pathlib import Path
 
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
@@ -81,9 +82,13 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_raw = snakemake.params.indir
-    intfile = snakemake.output.intfile
-    outfile = snakemake.output.outfile
+    path_raw = Path(snakemake.params.indir)
+    path_results = Path(snakemake.params.resultsdir)
+    path_results.mkdir(parents=True, exist_ok=True)
+    intfile = Path(snakemake.output.intfile)
+    intfile.parent.mkdir(parents=True, exist_ok=True)
+    outfile = Path(snakemake.output.outfile)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
 
     # read-in parameters
     print('Reading in data...')
@@ -106,7 +111,8 @@ if __name__ == '__main__':
     pdf = pdf.rename(columns={'utility_id':'uid'})
     print('Summarizing unique identifiers...')
     print('Plant dataset:')
-    print(summarize_id_counts_byyear(pdf.copy(), ['uid', 'pid']))
+    out = summarize_id_counts_byyear(pdf.copy(), ['uid', 'pid'])
+    out.to_csv(path_results / 'df_summ_final.csv')
 
 
 

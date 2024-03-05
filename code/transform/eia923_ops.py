@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import os
 import re
+from pathlib import Path
 
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
@@ -90,8 +91,11 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_raw = snakemake.params.indir
-    outfile = snakemake.output.outfile
+    path_raw = Path(snakemake.params.indir)
+    path_results = Path(snakemake.params.resultsdir)
+    path_results.mkdir(parents=True, exist_ok=True)
+    outfile = Path(snakemake.output.outfile)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
 
     # read-in parameters
     print('Reading in data...')
@@ -99,25 +103,30 @@ if __name__ == '__main__':
     df_raw = readin_eia_years(path_raw, readin_dict, year_start)
     # drop state-level fuel increments
     df = df_raw.loc[(df_raw.plant_id != 99999) & (df_raw.plant_name != 'State-Fuel Level Increment')].copy()
-    print(df.groupby(['year', 'sheet']).agg({'file':'count'}))
+    out = df.groupby(['year', 'sheet']).agg({'file':'count'})
+    out.to_csv(path_results / 'summ_filecount.csv')
 
     # confirm unique observation ID
     print('Confirming unique observation ids...')
     plant_groupcols = ['year', 'plant_id', 'nuclear_unit_id', 'reported_prime_mover', 
                        'reported_fuel_type_code', 'combined_heat_and_power_plant']
     print('Plant-level duplicates by groupcols:\n', plant_groupcols)
-    print(df
+    out = (df
         .loc[df.sheet == 'page_1_generation_and_fuel_data']
         .groupby(plant_groupcols, dropna=False)
         .agg({'file':'count'}).value_counts()
     )
+    out.to_csv(path_results / 'summ_plant_duplicates_pre.csv')
+    print(out)
     gen_groupcols = ['year', 'plant_id', 'combined_heat_and_power_plant', 'generator_id']
     print('Generator-level duplicates by groupcols:\n', gen_groupcols)
-    print(df
+    out = (df
         .loc[df.sheet != 'page_1_generation_and_fuel_data']
         .groupby(gen_groupcols, dropna=False)
         .agg({'file':'count'}).value_counts()
     )
+    out.to_csv(path_results / 'summ_gen_duplicates_pre.csv')
+    print(out)
 
     # get annual values for each row
     print('Cleaning up totals columns...')
@@ -163,4 +172,6 @@ if __name__ == '__main__':
         df.reported_fuel_type_code + df.combined_heat_and_power_plant)
     df.loc[df.sheet == 'page_4_generator_data', 'gid'] = (
         df.plant_id.astype(str) + df.generator_id.astype(str))
-    print(summarize_id_counts_byyear(df.rename(columns={'plant_id':'pid'}), ['pid', 'puid', 'gid']))
+    out = summarize_id_counts_byyear(df.rename(columns={'plant_id':'pid'}), ['pid', 'puid', 'gid'])
+    out.to_csv(path_results / 'df_summ_final.csv')
+    print(out)

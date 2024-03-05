@@ -11,7 +11,7 @@ pd.set_option('mode.chained_assignment', None)
 
 # read-in helper functions
 def readin_eia_year(path_folder, path_file, excel_params, rename_vars=None, keep_vars=None):
-    dfs = pd.read_excel(f'{path_folder}{path_file}', **excel_params)
+    dfs = pd.read_excel(f'{path_folder}/{path_file}', **excel_params)
     if type(dfs) != dict:
         dfs = {False:dfs}
     sdf = pd.DataFrame({})
@@ -52,7 +52,7 @@ def readin_eia_years(path_folder, readin_dict, start_year, keep_vars=None):
 def readin_epa(yr_start, yr_end, path_folder, vars_keep=None, vars_coll=None):
     df = pd.DataFrame()
     for yr in range(yr_start, yr_end+1):
-        path_folder_yr = f'{path_folder}{yr}/'
+        path_folder_yr = f'{path_folder}/{yr}/'
         files = [f for f in os.listdir(path_folder_yr)]
         for f in tqdm(files):
             df_in = pd.read_csv(path_folder_yr + f, low_memory=False)

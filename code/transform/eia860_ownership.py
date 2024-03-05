@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+from pathlib import Path
 
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
@@ -69,9 +70,13 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_raw = snakemake.params.indir
-    intfile = snakemake.output.intfile
-    outfile = snakemake.output.outfile
+    path_raw = Path(snakemake.params.indir)
+    path_results = Path(snakemake.params.resultsdir)
+    path_results.mkdir(parents=True, exist_ok=True)
+    intfile = Path(snakemake.output.intfile)
+    intfile.parent.mkdir(parents=True, exist_ok=True)
+    outfile = Path(snakemake.output.outfile)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
 
     # read-in parameters
     print('Reading in data...')
@@ -101,7 +106,9 @@ if __name__ == '__main__':
         odf.groupby(['utility_id', 'plant_code', 'generator_id', 'year'], dropna=False)
         ['percent_owned'].transform('count'))
     print("Before cleaning: count of generators where ownership doesn't add up:")
-    print(odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique']))
+    out = odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique'])
+    out.to_csv(path_results / 'summ_ownership_pct_pre.csv')
+    print(out)
     # 0. Divide by 100 in settings where decimal is off
     mask_decimal = odf.pct_ownership_total >= 50.
     summ_dict['decimal off'] = mask_decimal.sum()
@@ -125,7 +132,9 @@ if __name__ == '__main__':
         ['percent_owned'].transform('count'))
     print('Cleaning summary:\n', summ_dict)
     print("After cleaning: count of generators where ownership doesn't add up:")
-    print(odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique']))
+    out = odf.loc[np.abs(odf.pct_ownership_total - 1.) > 0.05].groupby('year')['generator_id'].agg(['count', 'nunique'])
+    out.to_csv(path_results / 'summ_ownership_pct_post.csv')
+    print(out)
     # TODO: need to handle 2010, it's really messy
     
     # SECOND: OWNERSHIP STATUS
@@ -142,4 +151,6 @@ if __name__ == '__main__':
     odf['oid'] = odf.gid + '.' + odf.ownership_id.astype(str)
     odf = odf.rename(columns={'utility_id':'uid'})
     print('Ownership dataset:')
-    print(summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id']))
+    out = summarize_id_counts_byyear(odf.copy(), ['uid', 'pid', 'gid', 'oid', 'ownership_id'])
+    out.to_csv(path_results / 'df_summ_final.csv')
+    print(out)

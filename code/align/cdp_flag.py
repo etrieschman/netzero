@@ -7,20 +7,6 @@ from rapidfuzz import fuzz, process
 
 SCORER = fuzz.WRatio
 
-# # global variables
-# PATH_DATA = '../data/'
-# PATH_PROCESSED = PATH_DATA + 'processed/'
-# PATH_INTERIM = PATH_DATA + 'interim/'
-# PATH_RESOURCES = PATH_DATA + 'resources/'
-# PATH_RESULTS = '../results/analysis/cdp/'
-# DENOM, ROUND = 1e6, 2
-# rpath = Path(PATH_RESULTS)
-# rpath.mkdir(parents=True, exist_ok=True)
-
-# options
-# pd.set_option('display.max_columns', None)
-# pd.set_option('display.max_rows', 500)
-
 # PREPROCESS NAMES
 def preprocess_names(x:pd.Series) -> pd.Series:
     # string updates
@@ -143,6 +129,8 @@ if __name__ == '__main__':
     # results path
     rpath = Path(snakemake.params.results_dir)
     rpath.mkdir(parents=True, exist_ok=True)
+    final_csv_dir = Path(snakemake.params.final_csv_dir)
+    final_csv_dir.mkdir(parents=True, exist_ok=True)
     
     # analysis options
     scorer = SCORER
@@ -241,4 +229,10 @@ if __name__ == '__main__':
     odf_cdp.to_parquet(snakemake.output.outfile_own)
     pdf_cdp.to_parquet(snakemake.output.outfile_plant)
     gdf_cdp.to_parquet(snakemake.output.outfile_gen)
+
+    # WRITE TO CSV
+    udf_cdp.to_csv(final_csv_dir / snakemake.output.outfile_util.split('/')[-1].replace('.parquet', '.csv'))
+    odf_cdp.to_csv(final_csv_dir / snakemake.output.outfile_own.split('/')[-1].replace('.parquet', '.csv'))
+    pdf_cdp.to_csv(final_csv_dir / snakemake.output.outfile_plant.split('/')[-1].replace('.parquet', '.csv'))
+    gdf_cdp.to_csv(final_csv_dir / snakemake.output.outfile_gen.split('/')[-1].replace('.parquet', '.csv'))
 # %%

@@ -14,6 +14,7 @@ data_pudl
 data/interim/*
 data/raw/*
 data/processed/*
+data/final/*
 data/pudl/*
 data/epa_ppr/*
 

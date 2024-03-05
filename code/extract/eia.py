@@ -88,6 +88,13 @@ if __name__ == '__main__':
     #     if 'region' in f:
     #         continue
     #     download_eia_file(f, PATH_EIA + 'emissions/')
+    
+    # RECORD OF DOWNLOAD
+    from datetime import datetime
+    logfile = path_eia_f860.parent / 'download_log.txt'
+    save_log = f'Data last downloaded on {datetime.now().strftime("%Y-%m-%d")} with data from {year_start}-{year_end}'
+    with open(logfile, 'w') as file:
+        file.write(save_log)
 
 
 # %%

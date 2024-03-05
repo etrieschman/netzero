@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+from pathlib import Path
 
 from utils_transform import readin_eia_years
 from utils_summ import summarize_id_counts_byyear
@@ -141,9 +142,13 @@ if __name__ == '__main__':
 
     year_start = snakemake.params.year_start
     year_end = snakemake.params.year_end
-    path_raw = snakemake.params.indir
-    intfile = snakemake.output.intfile
-    outfile = snakemake.output.outfile
+    path_raw = Path(snakemake.params.indir)
+    path_results = Path(snakemake.params.resultsdir)
+    path_results.mkdir(parents=True, exist_ok=True)
+    intfile = Path(snakemake.output.intfile)
+    intfile.parent.mkdir(parents=True, exist_ok=True)
+    outfile = Path(snakemake.output.outfile)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
 
     print('Reading in data...')
     gdf = readin_eia_years(path_raw, readin_dict, year_start, keep_vars=None)
@@ -186,7 +191,9 @@ if __name__ == '__main__':
     # UPDATE COLUMNS: OPERATION STATUS
     # FINDING: MISSING OR UNKOWN STATUS ONLY IN 2006
     print('unknown statuses:')
-    print(gdf_dedup.loc[gdf_dedup.status == 'nan'].groupby(['sheet', 'file'])['utility_id'].count())
+    out = gdf_dedup.loc[gdf_dedup.status == 'nan'].groupby(['sheet', 'file'])['utility_id'].count()
+    out.to_csv(path_results / 'summ_unknown_statuses.csv')
+    print(out)
     # DECISION: These all look like 2006 proposed generators. updating status to `P`
     gdf_dedup.loc[gdf_dedup.status == 'nan', 'status'] = 'IP'
     mask_op = (gdf_dedup.status == 'OP')
@@ -223,7 +230,9 @@ if __name__ == '__main__':
     gdf_dedup['gid'] = gdf_dedup.pid + '.' + gdf_dedup.generator_id
     gdf_dedup = gdf_dedup.rename(columns={'utility_id':'uid'})
     print('Generator dataset:')
-    print(summarize_id_counts_byyear(gdf_dedup.copy(), ['uid', 'pid', 'gid']))
+    out = summarize_id_counts_byyear(gdf_dedup.copy(), ['uid', 'pid', 'gid'])
+    out.to_csv(path_results / 'df_summ_final.csv')
+    print(out)
 
 
 # %%
