@@ -16,20 +16,20 @@ def make_dates(df, vm, vy):
 # %%
 # GENERATOR DATA
 readin_dict = {}
-readin_dict[2021] = {
+readin_dict[2022] = {
     'files':        [
-            f'{2021}/3_1_Generator_Y{2021}.xlsx', 
-            f'{2021}/3_2_Wind_Y{2021}.xlsx', 
-            f'{2021}/3_3_Solar_Y{2021}.xlsx', 
-            f'{2021}/3_4_Energy_Storage_Y{2021}.xlsx',
-            f'{2021}/3_5_Multifuel_Y{2021}.xlsx'
+            f'{2022}/3_1_Generator_Y{2022}.xlsx', 
+            f'{2022}/3_2_Wind_Y{2022}.xlsx', 
+            f'{2022}/3_3_Solar_Y{2022}.xlsx', 
+            f'{2022}/3_4_Energy_Storage_Y{2022}.xlsx',
+            f'{2022}/3_5_Multifuel_Y{2022}.xlsx'
     ],
     'excel_params': {'header':1, 'sheet_name':None},
     'rename_vars':  None
 }
 # cut corner: 2013/2016 is mostly the same
-for year in range(2013, 2021+1):
-    readin_dict[year] = readin_dict[2021].copy()
+for year in range(2013, 2022+1):
+    readin_dict[year] = readin_dict[2022].copy()
     if year >= 2016:
         readin_dict[year]['files'] = [
                 f'{year}/3_1_Generator_Y{str(year)}.xlsx', 

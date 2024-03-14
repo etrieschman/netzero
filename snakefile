@@ -12,8 +12,8 @@ PATH_INTERIM = PATH_DATA + 'interim/'
 PATH_RESOURCES = PATH_DATA + 'resources/'
 PATH_FINAL = PATH_DATA + 'final/'
 PATH_RESULTS = 'results/'
-YEAR_START = 2019
-YEAR_END = 2021
+YEAR_START = 2006
+YEAR_END = 2022
 
 # --------------------------- Rules --------------------------- #
 
@@ -57,7 +57,7 @@ rule extract_eia:
         flat_p = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/2___Plant_Y{YEAR_END}.xlsx',
         flag_g = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/3_1_Generator_Y{YEAR_END}.xlsx',
         flag_o = PATH_DATA + 'raw/' + 'eia/' + f'f860/{YEAR_END}/4___Owner_Y{YEAR_END}.xlsx',
-        flag_ops = PATH_DATA + 'raw/' + 'eia/' + f'f923/{YEAR_END}/EIA923_Schedules_2_3_4_5_M_12_{YEAR_END}_Final_Revision.xlsx'
+        flag_ops = PATH_DATA + 'raw/' + 'eia/' + f'f923/{YEAR_END}/EIA923_Schedules_2_3_4_5_M_12_{YEAR_END}_Final.xlsx'
     log:
         "logs/extract_eia.log"
     script:
@@ -160,7 +160,7 @@ rule transform_eia923_ops:
         indir = PATH_DATA + 'raw/' + 'eia/f923/',
         resultsdir = PATH_RESULTS + 'transform/eia/f923/'
     input: 
-        flag = PATH_DATA + 'raw/' + 'eia/' + f'f923/{YEAR_END}/EIA923_Schedules_2_3_4_5_M_12_{YEAR_END}_Final_Revision.xlsx'
+        flag = PATH_DATA + 'raw/' + 'eia/' + f'f923/{YEAR_END}/EIA923_Schedules_2_3_4_5_M_12_{YEAR_END}_Final.xlsx'
     output:
         outfile = PATH_PROCESSED + 'eia923_ops.parquet'
     log:

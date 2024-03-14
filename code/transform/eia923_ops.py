@@ -32,6 +32,12 @@ def rename_cols(s):
 # EIA form 923 OPERATIONS DATA
 # Data documentation: https://www.eia.gov/electricity/data/eia923/
 readin_dict = {}
+readin_dict[2022] = {
+    'files': [f'{2022}/EIA923_Schedules_2_3_4_5_M_12_{2022}_Final.xlsx'],
+    'excel_params':{'header':5, 'na_values': '.',
+                    'sheet_name':['Page 1 Generation and Fuel Data', 'Page 4 Generator Data']},
+    'rename_vars': rename_cols
+}
 readin_dict[2021] = {
     'files': [f'{2021}/EIA923_Schedules_2_3_4_5_M_12_{2021}_Final_Revision.xlsx'],
     'excel_params':{'header':5, 'na_values': '.',

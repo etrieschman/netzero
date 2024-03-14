@@ -94,12 +94,12 @@ EPA_API_KEY = 'YOUR API KEY HERE, MAKE SURE IT'S IN QUOTATIONS'
 ### Run Snakemake pipeline
 Finally, to run the Snakemake pipeline and generate the analysis datasets locally, execute:
 ```
-snakemake --cores all
+snakemake -j4
 ```
 
 When working with Snakemake, it is recommended to always perform a dry run of the pipeline first, which can be accomplished with
 ```
-snakemake -- cores all -n
+snakemake -j4 -n
 ```
 
 The generated analysis datasets can be found in the `data/final` directory after the Snakemake pipeline has finished running. Refer to the [data/README.md](./data/README.md) in the results directory for detailed descriptions of the raw datasets and resources.

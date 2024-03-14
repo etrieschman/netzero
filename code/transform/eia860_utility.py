@@ -11,14 +11,14 @@ from utils_summ import summarize_id_counts_byyear
 # %%
 # UTILITY DATA
 readin_dict = {}
-readin_dict[2021] = {
-    'files': [f'{2021}/1___Utility_Y{2021}.xlsx'],
+readin_dict[2022] = {
+    'files': [f'{2022}/1___Utility_Y{2022}.xlsx'],
     'excel_params':{'header':1, 'sheet_name':None},
     'rename_vars':{'city':'city_util', 'state':'state_util', 'zip':'zip_util'}
 }
 # cut corner: 2013+ is all the same
-for yr in range(2013, 2021+1):
-    readin_dict[yr] = readin_dict[2021].copy()
+for yr in range(2013, 2022+1):
+    readin_dict[yr] = readin_dict[2022].copy()
     readin_dict[yr]['files'] = [f'{yr}/1___Utility_Y{yr}.xlsx']
 
 readin_dict[2012] = {

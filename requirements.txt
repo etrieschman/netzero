@@ -1,4 +1,4 @@
-numpy==1.25.2
+numpy==1.26.4
 scipy==1.11.4
 pandas==2.1.0
 matplotlib==3.7.2
@@ -11,39 +11,38 @@ xlrd==2.0.1
 networkx==3.2.1
 camelot-py==0.11.0
 tabula-py==2.9.0
-snakemake==7.32.4
+snakemake
 # fuzzy name matching
 thefuzz==0.20.0
 jellyfish==1.0.3
 
-
+# Accessing dropbox
 dropbox
 openpyxl==3.1.2
 
 # GPT for fuzzy name matching
-transformers==4.36.2
-Accelerate==0.25.0
-torch==2.1.2
+# transformers==4.36.2
+# Accelerate==0.25.0
+# torch==2.1.2
 
 # dependencies
 # opencv-python==4.8.1.78
-pyarrow==14.0.1
-jpype1==1.4.1
+pyarrow
+jpype1
 opencv-python==4.8.1.78
-ghostscript==0.7
+# ghostscript==0.7
 python_Levenshtein==0.23.0
 # ghostscript==0.7
 
 # catalystcoop.pudl==0.6.0
 # zenodo_get==1.4.0
 
-
 tqdm
 ipykernel==6.25.1
 
 # Geospatial
-geopandas==0.13.2
-plotly==5.16.1
-plotly-geo==1.0.0
-pyshp==2.3.1
-shapely==2.0.1
+geopandas
+# plotly==5.16.1
+# plotly-geo==1.0.0
+pyshp
+shapely

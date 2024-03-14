@@ -9,6 +9,7 @@ code/extract/credentials.py
 
 # virtual environment
 venv/
+venv*
 # data files
 data_pudl
 data/interim/*
