@@ -15,6 +15,10 @@ PATH_RESULTS = '../results/analysis/iou_trends/'
 Path(PATH_RESULTS).mkdir(exist_ok=True, parents=True)
 YEAR_START = 1990
 
+# options
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', 200)
+
 # %%
 # SCRAPE ALL FILEPATHS THAT END IN SPECIFIC SUFFIX
 def get_eia_files(url, start_year, suffs='.zip'):
@@ -80,11 +84,39 @@ readin_dict = {}
 readin_dict[2022] = {
     'files': [f'{2022}/Sales_Ult_Cust_{2022}.xlsx'],
     'excel_params':{'header':2, 'sheet_name':'States'},
-    'rename_vars':{'data_type_o_=_observed_i_=_imputed':'data_type'}
+    'rename_vars':{'data_type_o_=_observed_i_=_imputed':'data_type',
+                   'thousand_dollars':'rev_1k_res', 'megawatthours':'sales_mwh_res', 'count':'cust_res',
+                   'thousand_dollars1':'rev_1k_com', 'megawatthours1':'sales_mwh_com', 'count1':'cust_com',
+                   'thousand_dollars2':'rev_1k_ind', 'megawatthours2':'sales_mwh_ind', 'count2':'cust_ind',
+                   'thousand_dollars3':'rev_1k_trans', 'megawatthours3':'sales_mwh_trans', 'count3':'cust_trans',
+                   'thousand_dollars4':'rev_1k_tot', 'megawatthours4':'sales_mwh_tot', 'count4':'cust_tot'}
 }
 for yr in range(2015, 2022):
     readin_dict[yr] = readin_dict[2022].copy()
     readin_dict[yr]['files'] = [f'{yr}/Sales_Ult_Cust_{yr}.xlsx']
+for yr in range(2013, 2015):
+    readin_dict[yr] = readin_dict[2022].copy()
+    readin_dict[yr]['files'] = [f'{yr}/Sales_Ult_Cust_{yr}.xls']
+for yr in range(2001, 2013):
+    readin_dict[yr] = readin_dict[2022].copy()
+    readin_dict[yr]['files'] = [f'{yr}/Sales_Ult_Cust_{yr}.xlsx']
+readin_dict[2012]['rename_vars'] = {
+   'data_type_o_=_observed_i_=_imputed':'data_type',
+    'thousands_dollars':'rev_1k_res', 'megawatthours':'sales_mwh_res', 'count':'cust_res',
+    'thousands_dollars1':'rev_1k_com', 'megawatthours1':'sales_mwh_com', 'count1':'cust_com',
+    'thousands_dollars2':'rev_1k_ind', 'megawatthours2':'sales_mwh_ind', 'count2':'cust_ind',
+    'thousands_dollars3':'rev_1k_oth', 'megawatthours3':'sales_mwh_oth', 'count3':'cust_oth',
+    'thousands_dollars4':'rev_1k_tot', 'megawatthours4':'sales_mwh_tot', 'count4':'cust_tot'}
+for yr in range(1990, 2001):
+    readin_dict[yr] = readin_dict[2022].copy()
+    readin_dict[yr]['files'] = [f'{yr}/Sales_Ult_Cust_{yr}.xlsx']
+    readin_dict[yr]['rename_vars'] = {
+        'data_type_o_=_observed_i_=_imputed':'data_type',
+        'thousand_dollars':'rev_1k_res', 'megawatthours':'sales_mwh_res', 'count':'cust_res',
+        'thousand_dollars1':'rev_1k_com', 'megawatthours1':'sales_mwh_com', 'count1':'cust_com',
+        'thousand_dollars2':'rev_1k_ind', 'megawatthours2':'sales_mwh_ind', 'count2':'cust_ind',
+        'thousand_dollars3':'rev_1k_oth', 'megawatthours3':'sales_mwh_oth', 'count3':'cust_oth',
+        'thousand_dollars4':'rev_1k_tot', 'megawatthours4':'sales_mwh_tot', 'count4':'cust_tot'}
 
 
 # %%
@@ -98,11 +130,22 @@ if __name__ == '__main__':
 
     # READIN AND STACK DATA
     udf = readin_eia_years(PATH_EIA_F861, readin_dict, YEAR_START)
+    vars = [col for col in udf.columns if col.startswith(('rev_1k', 'sales_mwh', 'cust'))]
+    for var in vars:
+        udf[var] = pd.to_numeric(udf[var], errors='coerce').fillna(0)
+    # print missing by year
+    print(udf.groupby('year').agg(lambda x: x.isna().sum()))
 
-    # SUMMARIZE
-    # NOTE: this fails because we have conflicting dtypes
-    udf['sales_sector_total'] = udf.groupby(['data_year'])['megawatthours4'].transform('sum')
-    udf['cust_sector_total'] = udf.groupby(['data_year'])['count4'].transform('sum')
-    udf['pct_sales_sector_total'] = udf.megawatthours4 / udf.sales_sector_total
-    udf['pct_cust_sector_total'] = udf.count4 / udf.cust_sector_total
+    # add a filter
+    udf['filter_out'] = False
+    mask = udf.utility_number.isna() & (udf.year != 2002)
+    udf.loc[mask, 'filter_out'] = True
+    mask = (udf.utility_number == 88888) | (udf.utility_number == 99999)
+    udf.loc[mask, 'filter_out'] = True
+
+    # save to file
+    udf.to_csv(PATH_RESULTS + 'df_stacked_f860_sales_ult_cust.csv', index=False)
+    
 # %%
+# NOTE FROM EXCEL
+# To calculate a state or the US total, sum Parts (A,B,C & D) for Revenue, but only Parts (A,B & D) for Sales and Customers.\nTo avoid double counting of customers, the aggregated customer counts for the states and US do not include the customer count for respondents with ownership code 'Behind the Meter'.\nThis group consists of Third Party Owners of rooftop solar systems.
